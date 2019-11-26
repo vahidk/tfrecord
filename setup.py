@@ -9,4 +9,5 @@ setup(name="tfrecord",
       author_email="vkazemi@gmail.com",
       license="MIT",
       url="https://github.com/vahidk/tfrecord",
-      packages=["tfrecord"])
+      packages=["tfrecord"],
+      install_requires=["numpy", "protobuf"])

@@ -1,6 +1,9 @@
 # TFRecord reader
 
-Usage:
+## Installation
+pip3 install tfrecord
+
+## Usage
 
 Use TFRecordDataset to read TFRecord files in PyTorch.
 ```python
