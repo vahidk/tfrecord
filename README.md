@@ -5,7 +5,7 @@ Usage:
 Use TFRecordDataset to read TFRecord files in PyTorch.
 ```python
 import torch
-from tfrecord.torch dataset import TFRecordDataset, MultiTFRecordDataset
+from tfrecord.torch.dataset import TFRecordDataset, MultiTFRecordDataset
 
 dataset = TFRecordDataset(tfrecord_path, None, {"image": "byte", "label": "float"})
 loader = torch.utils.data.DataLoader(dataset, batch_size=32)
