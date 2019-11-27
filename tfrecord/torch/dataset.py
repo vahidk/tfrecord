@@ -18,7 +18,7 @@ class TFRecordDataset(torch.utils.data.IterableDataset):
             shard = worker_info.id, worker_info.num_workers
             np.random.seed(worker_info.id)
         else:
-            worker_info = None
+            shard = None
         it = io_utils.tfrecord_loader(
             self.data_path, self.index_path, self.description, shard)
         if self.shuffle_queue_size:
