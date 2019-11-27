@@ -54,7 +54,6 @@ def tfrecord_iterator(data_path, index_path=None, shard=None):
             file.seek(start_offset)
         if end_offset is None:
             end_offset = os.path.getsize(data_path)
-        print("Reading from {} to {}.".format(start_offset, end_offset))
         while file.tell() < end_offset:
             if file.readinto(length_bytes) != 8:
                 raise RuntimeError("Failed to read the record size.")
