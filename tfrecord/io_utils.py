@@ -2,6 +2,7 @@
 
 import functools
 import io
+import os
 import struct
 
 import numpy as np
@@ -32,73 +33,76 @@ def serialize_tf_example(datum):
     return example_proto.SerializeToString()
 
 
-def tfrecord_iterator(data_path, index_path=None):
-    """Iterate over a tfrecord file given tfrecord and index file."""
+def tfrecord_iterator(data_path, index_path=None, shard=None):
+    """Create an iterator over tfrecord dataset.
+
+    Args:
+      data_path: TFRecord file path.
+      index_path: Index file path.
+      shard: A tuple (index, count) representing the shard information.
+    Returns:
+      An iterator over the dataset.
+    """
     file = io.open(data_path, "rb")
 
     length_bytes = bytearray(8)
     crc_bytes = bytearray(4)
     datum_bytes = bytearray(1024*1024)
 
-    def read_record():
-        if file.readinto(length_bytes) != 8:
-            return None
-        if file.readinto(crc_bytes) != 4:
-            return None
-        length, = struct.unpack("q", length_bytes)
-        if length > len(datum_bytes):
-            datum_bytes.zfill(int(length * 1.5))
-        datum_bytes_view = memoryview(datum_bytes)[:length]
-        if file.readinto(datum_bytes_view) != length:
-            return None
-        if file.readinto(crc_bytes) != 4:
-            return None
-        return datum_bytes_view
+    def read_records(start_offset=None, end_offset=None):
+        if start_offset is not None:
+            file.seek(start_offset)
+        if end_offset is None:
+            end_offset = os.path.getsize(data_path)
+        print("Reading from {} to {}.".format(start_offset, end_offset))
+        while file.tell() < end_offset:
+            if file.readinto(length_bytes) != 8:
+                raise RuntimeError("Failed to read the record size.")
+            if file.readinto(crc_bytes) != 4:
+                raise RuntimeError("Failed to read the start token.")
+            length, = struct.unpack("<Q", length_bytes)
+            if length > len(datum_bytes):
+                datum_bytes.zfill(int(length * 1.5))
+            datum_bytes_view = memoryview(datum_bytes)[:length]
+            if file.readinto(datum_bytes_view) != length:
+                raise RuntimeError("Failed to read the record.")
+            if file.readinto(crc_bytes) != 4:
+                raise RuntimeError("Failed to read the end token.")
+            yield datum_bytes_view
 
-    if index_path is not None:
-        index = np.loadtxt(index_path, dtype=np.int64)
-        if index.ndim > 1:
-            index = index[:, 0]
-        offset = np.random.choice(index)
-        file.seek(offset)
-
-        while True:
-            datum = read_record()
-            if datum is None:
-                break
-            yield datum
-
-        file.seek(0)
-        while True:
-            datum = read_record()
-            if datum is None:
-                break
-            yield datum
-            if file.tell() >= offset:
-                break
-
+    if index_path is None:
+        yield from read_records()
     else:
-        while True:
-            datum = read_record()
-            if datum is None:
-                break
-            yield datum
+        index = np.loadtxt(index_path, dtype=np.int64)[:, 0]
+        if shard is None:
+            offset = np.random.choice(index)
+            yield from read_records(offset)
+            yield from read_records(0, offset)
+        else:
+            num_records = len(index)
+            shard_idx, shard_count = shard
+            start_index = (num_records * shard_idx) // shard_count
+            end_index = (num_records * (shard_idx + 1)) // shard_count
+            start_byte = index[start_index]
+            end_byte = index[end_index] if end_index < num_records else None
+            yield from read_records(start_byte, end_byte)
 
     file.close()
 
 
-def tfrecord_loader(data_path, index_path=None , description=None):
+def tfrecord_loader(data_path, index_path, description, shard=None):
     """Create an iterator from a tfrecord dataset. 
 
     Args:
-        data_path: Input data path.
-        index_path: Index path..
+        data_path: Path of the input data.
+        index_path: Path of index file. This can be set to None if not available.
         description: A dictionary of key and values where keys are the name of the features and values correspond to
                      data type. The data type can be "byte", "float" or "int".
+        shared: A tuple (index, count) representing the shard information.
     Returns:
         An iterator that generates individual data records.
     """
-    record_iterator = tfrecord_iterator(data_path, index_path)
+    record_iterator = tfrecord_iterator(data_path, index_path, shard)
 
     for record in record_iterator:
         example = example_pb2.Example()

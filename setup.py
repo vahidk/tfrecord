@@ -3,7 +3,7 @@
 from distutils.core import setup
 
 setup(name="tfrecord",
-      version="1.1",
+      version="1.2",
       description="TFRecord reader.",
       author="Vahid Kazemi",
       author_email="vkazemi@gmail.com",

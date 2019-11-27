@@ -1,3 +1,4 @@
+import numpy as np
 import torch.utils.data
 from tfrecord import io_utils
 from tfrecord import iterator_utils
@@ -12,8 +13,14 @@ class TFRecordDataset(torch.utils.data.IterableDataset):
         self.shuffle_queue_size = shuffle_queue_size
 
     def __iter__(self):
+        worker_info = torch.utils.data.get_worker_info()
+        if worker_info is not None:
+            shard = worker_info.id, worker_info.num_workers
+            np.random.seed(worker_info.id)
+        else:
+            worker_info = None
         it = io_utils.tfrecord_loader(
-            self.data_path, self.index_path, self.description)
+            self.data_path, self.index_path, self.description, shard)
         if self.shuffle_queue_size:
             it = iterator_utils.shuffle_iterator(it, self.shuffle_queue_size)
         return it
@@ -29,6 +36,9 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
         self.shuffle_queue_size = shuffle_queue_size
 
     def __iter__(self):
+        worker_info = torch.utils.data.get_worker_info()
+        if worker_info is not None:
+            np.random.seed(worker_info.id)
         it = io_utils.multi_tfrecord_loader(
             self.data_pattern, self.index_pattern, self.splits, self.description)
         if self.shuffle_queue_size:

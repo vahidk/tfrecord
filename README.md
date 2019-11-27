@@ -5,13 +5,21 @@ pip3 install tfrecord
 
 ## Usage
 
+It's recommended to create an index file for each TFRecord file. Index file must be provided when using multiple workers, otherwise the loader may return duplicate records.
+```
+python3 -m tfrecord.tools.tfrecord2idx <tfrecord path> <index path>
+```
+
+
 Use TFRecordDataset to read TFRecord files in PyTorch.
 ```python
 import torch
 from tfrecord.torch.dataset import TFRecordDataset
 
 tfrecord_path = "/path/to/data.tfrecord"
-dataset = TFRecordDataset(tfrecord_path, None, {"image": "byte", "label": "float"})
+index_path = None
+description = {"image": "byte", "label": "float"}
+dataset = TFRecordDataset(tfrecord_path, index_path, description)
 loader = torch.utils.data.DataLoader(dataset, batch_size=32)
 
 data = next(iter(loader))
@@ -29,14 +37,10 @@ splits = {
     "dataset1": 0.8,
     "dataset2": 0.2,
 }
-dataset = MultiTFRecordDataset(tfrecord_pattern, index_pattern, splits, {"image": "byte", "label": "int"})
+description = {"image": "byte", "label": "int"}
+dataset = MultiTFRecordDataset(tfrecord_pattern, index_pattern, splits, description)
 loader = torch.utils.data.DataLoader(dataset, batch_size=32)
 
 data = next(iter(loader))
 print(data)
-```
-
-You can create an index file which allows random access. Index file must be provided when using multiple workers, otherwise the loader may return duplicate records.
-```
-python3 -m tfrecord.tools.tfrecord2idx <tfrecord path> <index path>
 ```
