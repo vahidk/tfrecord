@@ -97,7 +97,7 @@ def tfrecord_loader(data_path, index_path, description, shard=None):
         index_path: Path of index file. This can be set to None if not available.
         description: A dictionary of key and values where keys are the name of the features and values correspond to
                      data type. The data type can be "byte", "float" or "int".
-        shared: A tuple (index, count) representing the shard information.
+        shard: A tuple (index, count) representing the shard information. (default : None)
     Returns:
         An iterator that generates individual data records.
     """
