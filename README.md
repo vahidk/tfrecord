@@ -18,7 +18,7 @@ data = next(iter(loader))
 print(data)
 ```
 
-Use MultiTFRecordDataset to read multiple TFRecord files. This class constructs batches of data by sampling from given tfrecord files with given probability.
+Use MultiTFRecordDataset to read multiple TFRecord files. This class samples from given tfrecord files with given probability.
 ```python
 import torch
 from tfrecord.torch.dataset import MultiTFRecordDataset
@@ -30,13 +30,13 @@ splits = {
     "dataset2": 0.2,
 }
 dataset = MultiTFRecordDataset(tfrecord_pattern, index_pattern, splits, {"image": "byte", "label": "int"})
-loader = torch.utils.data.DataLoader(dataset, batch_size=None)
+loader = torch.utils.data.DataLoader(dataset, batch_size=32)
 
 data = next(iter(loader))
 print(data)
 ```
 
-You can create an index file which allows random access useful for parallel reading.
+You can create an index file which allows random access. Index file must be provided when using multiple workers, otherwise the loader may return duplicate records.
 ```
 python3 -m tfrecord.tools.tfrecord2idx <tfrecord path> <index path>
 ```
