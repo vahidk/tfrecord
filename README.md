@@ -44,3 +44,29 @@ loader = torch.utils.data.DataLoader(dataset, batch_size=32)
 data = next(iter(loader))
 print(data)
 ```
+
+Creating tfrecord files:
+```python
+import tfrecord
+
+writer = tfrecord.TFRecordWriter("/path/to/data.tfrecord")
+writer.write({
+    "image": (image_bytes, "byte"),
+    "label": (label, "float"),
+    "index": (index, "int")
+})
+writer.close()
+```
+
+Reading tfrecord files in python:
+```python
+import tfrecord
+
+loader = tfrecord.tfrecord_loader("/path/to/data.tfrecord", None, {
+    "image": (image_bytes, "byte"),
+    "label": (label, "float"),
+    "index": (index, "int")
+})
+for record in loader:
+    print(record["label"])
+```
