@@ -63,9 +63,9 @@ Reading tfrecord files in python:
 import tfrecord
 
 loader = tfrecord.tfrecord_loader("/path/to/data.tfrecord", None, {
-    "image": (image_bytes, "byte"),
-    "label": (label, "float"),
-    "index": (index, "int")
+    "image": "byte",
+    "label": "float",
+    "index": "int"
 })
 for record in loader:
     print(record["label"])
