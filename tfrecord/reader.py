@@ -1,4 +1,4 @@
-"""I/O utils."""
+"""Reader utils."""
 
 import functools
 import io
@@ -9,57 +9,6 @@ import numpy as np
 
 from tfrecord import example_pb2
 from tfrecord import iterator_utils
-
-
-class TFRecordWriter:
-    def __init__(self, data_path):
-        """Opens a tfrecord file for writing.
-        
-        Args:
-            data_path: Path to the tfrecord file.
-        """
-        self.file = io.open(data_path, "wb")
-
-    def close(self):
-        """Close the tfrecord file."""
-        self.file.close()
-
-    def write(self, datum):
-        """Write an example into tfrecord file. 
-
-        Args:
-            Datum is a dictionary of tuples of form (value, dtype). dtype can be "byte", "float" or "int".
-        """
-        record = TFRecordWriter.serialize_tf_example(datum)
-        length = len(record)
-        length_bytes = struct.pack("<Q", length)
-        crc_bytes = bytearray(4)
-        self.file.write(length_bytes)
-        self.file.write(crc_bytes)
-        self.file.write(record)
-        self.file.write(crc_bytes)
-
-    @staticmethod
-    def serialize_tf_example(datum):
-        """Serialize example into tfrecord.Example proto. 
-
-        Args:
-            Datum is a dictionary of tuples of form (value, dtype). dtype can be "byte", "float" or "int".
-        Returns:
-            Serialized tfrecord.example to bytes.
-        """
-        features = {}
-        for key, (value, dtype) in datum.items():
-            feature = {
-                "byte": lambda f: example_pb2.Feature(bytes_list=example_pb2.BytesList(value=[f])),
-                "float": lambda f: example_pb2.Feature(float_list=example_pb2.FloatList(value=f)),
-                "int": lambda f: example_pb2.Feature(int64_list=example_pb2.Int64List(value=f))
-            }[dtype](value)
-            features[key] = feature
-
-        example_proto = example_pb2.Example(
-            features=example_pb2.Features(feature=features))
-        return example_proto.SerializeToString()
 
 
 def tfrecord_iterator(data_path, index_path=None, shard=None):
