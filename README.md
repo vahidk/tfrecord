@@ -57,6 +57,10 @@ writer.write({
 })
 writer.close()
 ```
+Note: To write tfrecord files you also need an additional dependency:
+```
+pip3 install crc32c
+```
 
 Reading tfrecord files in python:
 ```python
