@@ -4,6 +4,7 @@ import io
 import struct
 
 import numpy as np
+
 try:
     import crc32c
 except ImportError:
@@ -13,6 +14,13 @@ from tfrecord import example_pb2
 
 
 class TFRecordWriter:
+    # dict of lambdas to convert datums to features
+    lambda_convert_datum_to_feature = {
+        "byte": lambda f: example_pb2.Feature(bytes_list=example_pb2.BytesList(value=[f])),
+        "float": lambda f: example_pb2.Feature(float_list=example_pb2.FloatList(value=f)),
+        "int": lambda f: example_pb2.Feature(int64_list=example_pb2.Int64List(value=f))
+    }
+
     def __init__(self, data_path):
         """Opens a tfrecord file for writing.
 
@@ -58,14 +66,10 @@ class TFRecordWriter:
             Serialized tfrecord.example to bytes.
         """
         features = {}
+
         for key, (value, dtype) in datum.items():
-            feature = {
-                "byte": lambda f: example_pb2.Feature(bytes_list=example_pb2.BytesList(value=[f])),
-                "float": lambda f: example_pb2.Feature(float_list=example_pb2.FloatList(value=f)),
-                "int": lambda f: example_pb2.Feature(int64_list=example_pb2.Int64List(value=f))
-            }[dtype](value)
+            feature = TFRecordWriter.lambda_convert_datum_to_feature[dtype](value)
             features[key] = feature
 
-        example_proto = example_pb2.Example(
-            features=example_pb2.Features(feature=features))
+        example_proto = example_pb2.Example(features=example_pb2.Features(feature=features))
         return example_proto.SerializeToString()
