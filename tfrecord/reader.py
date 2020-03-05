@@ -9,7 +9,6 @@ import numpy as np
 
 from tfrecord import example_pb2
 from tfrecord import iterator_utils
-import petastorm.pytorch
 
 
 def tfrecord_iterator(data_path, index_path=None, shard=None):
