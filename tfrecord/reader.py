@@ -69,14 +69,16 @@ def tfrecord_iterator(data_path, index_path=None, shard=None):
     file.close()
 
 
-def tfrecord_loader(data_path, index_path, description, shard=None):
-    """Create an iterator from a tfrecord dataset. 
+def tfrecord_loader(data_path, index_path, description=None, shard=None):
+    """Create an iterator from a tfrecord dataset.
 
     Args:
         data_path: Path of the input data.
         index_path: Path of index file. This can be set to None if not available.
-        description: A dictionary of key and values where keys are the name of the features and values correspond to
-                     data type. The data type can be "byte", "float" or "int".
+        description: A dictionary of (key, value) pairs where the keys are the
+            name of the features and values (ignored) correspond to data type.
+            Only the specified keys are extracted. If None, then all features
+            contained in the file are extracted. (default: None)
         shard: A tuple (index, count) representing the shard information. (default : None)
     Returns:
         An iterator that generates individual data records.
@@ -88,23 +90,25 @@ def tfrecord_loader(data_path, index_path, description, shard=None):
         example.ParseFromString(record)
 
         features = {}
-        for key, typename in description.items():
-            tf_typename = {
-                "byte": "bytes_list",
-                "float": "float_list",
-                "int": "int64_list"
-            }[typename]
-            if key not in example.features.feature:
-                raise ValueError("Key {} doesn't exist.".format(key))
-            value = getattr(example.features.feature[key], tf_typename).value
-            if typename == "byte":
+        all_keys = list(example.features.feature.keys())
+        if description is None:
+            description = dict(zip(all_keys), [None]*len(all_keys))
+        for key in description.keys():
+            if key not in all_keys:
+                raise KeyError(f"Key {key} doesn't exist (select from {all_keys})!")
+            # NOTE: We assume that each key in the example has only one field
+            # (either "bytes_list", "float_list", or "int64_list")!
+            field = example.features.feature[key].ListFields()[0]
+            tf_typename, value = field[0].name, field[1].value
+
+            # Decode raw bytes into respective data types
+            if tf_typename == "bytes_list":
                 value = np.frombuffer(value[0], dtype=np.uint8)
-            elif typename == "float":
+            elif tf_typename == "float_list":
                 value = np.array(value, dtype=np.float32)
-            elif typename == "int":
+            elif tf_typename == "int64_list":
                 value = np.array(value, dtype=np.int32)
             features[key] = value
-
         yield features
 
 
