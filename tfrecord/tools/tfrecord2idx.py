@@ -1,9 +1,21 @@
-#!/usr/bin/env python
 import sys
 import struct
 
 
-def create_index(tfrecord_file, index_file):
+def create_index(tfrecord_file: str, index_file: str) -> None:
+    """Create index from the tfrecords file.
+
+    Stores starting location (byte) and length (in bytes) of each
+    serialized record.
+
+    Params:
+    -------
+    tfrecord_file: str
+        Path to the TFRecord file.
+
+    index_file: str
+        Path where to store the index file.
+    """
     infile = open(tfrecord_file, "rb")
     outfile = open(index_file, "w")
 
@@ -21,7 +33,6 @@ def create_index(tfrecord_file, index_file):
         except:
             print("Failed to parse TFRecord.")
             break
-
     infile.close()
     outfile.close()
 
