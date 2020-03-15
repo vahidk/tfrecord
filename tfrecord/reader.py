@@ -75,10 +75,8 @@ def tfrecord_loader(data_path, index_path, description=None, shard=None):
     Args:
         data_path: Path of the input data.
         index_path: Path of index file. This can be set to None if not available.
-        description: A dictionary of (key, value) pairs where the keys are the
-            name of the features and values (ignored) correspond to data type.
-            Only the specified keys are extracted. If None, then all features
-            contained in the file are extracted. (default: None)
+        description: List of keys to extract from each record. If None, then all
+            features contained in the file are extracted. (default: None)
         shard: A tuple (index, count) representing the shard information. (default : None)
     Returns:
         An iterator that generates individual data records.
@@ -92,7 +90,7 @@ def tfrecord_loader(data_path, index_path, description=None, shard=None):
         features = {}
         all_keys = list(example.features.feature.keys())
         if description is None:
-            description = dict(zip(all_keys), [None]*len(all_keys))
+            description = all_keys
         for key in description.keys():
             if key not in all_keys:
                 raise KeyError(f"Key {key} doesn't exist (select from {all_keys})!")
