@@ -2,8 +2,7 @@
 
 import io
 import struct
-
-from typing import Any, Dict, Tuple
+import typing
 
 import numpy as np
 try:
@@ -30,7 +29,7 @@ class TFRecordWriter:
         """Close the tfrecord file."""
         self.file.close()
 
-    def write(self, datum: Dict[str, Tuple[Any, str]]) -> None:
+    def write(self, datum: typing.Dict[str, typing.Tuple[typing.Any, str]]) -> None:
         """Write an example into tfrecord file.
 
         Params:
@@ -58,7 +57,7 @@ class TFRecordWriter:
         return masked_bytes
 
     @staticmethod
-    def serialize_tf_example(datum: Dict[str, Tuple[Any, str]]) -> bytes:
+    def serialize_tf_example(datum: typing.Dict[str, typing.Tuple[typing.Any, str]]) -> bytes:
         """Serialize example into tfrecord.Example proto.
 
         Params:

@@ -1,12 +1,13 @@
 """Iterator utils."""
 
+import typing
 import warnings
-from typing import Any, Callable, Iterable, Iterator, List
 
 import numpy as np
 
 
-def sample_iterators(itrs: List[Iterator], ratios: List[int]) -> Iterable[Any]:
+def sample_iterators(itrs: typing.List[typing.Iterator],
+                     ratios: typing.List[int]) -> typing.Iterable[typing.Any]:
     """Retrieve info generated from the iterator(s) according to their
     sampling ratios.
 
@@ -25,7 +26,7 @@ def sample_iterators(itrs: List[Iterator], ratios: List[int]) -> Iterable[Any]:
         an iterator (based off their sampling ratio).
     """
 
-    def cycle(iterator_fn: Callable):
+    def cycle(iterator_fn: typing.Callable):
         """Create a repeating iterator from an iterator generator."""
         while True:
             for element in iterator_fn():
@@ -39,7 +40,8 @@ def sample_iterators(itrs: List[Iterator], ratios: List[int]) -> Iterable[Any]:
         yield next(itrs[choice])
 
 
-def shuffle_iterator(itr: Iterator, queue_size: int) -> Iterable[Any]:
+def shuffle_iterator(itr: typing.Iterator,
+                     queue_size: int) -> typing.Iterable[typing.Any]:
     """Shuffle elements contained in an iterator.
 
     Params:

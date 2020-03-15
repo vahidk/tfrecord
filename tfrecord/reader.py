@@ -1,11 +1,10 @@
 """Reader utils."""
 
+import functools
 import io
 import os
 import struct
-
-from functools import partial
-from typing import Dict, Iterable, Optional, Tuple
+import typing
 
 import numpy as np
 
@@ -14,9 +13,9 @@ from tfrecord import iterator_utils
 
 
 def tfrecord_iterator(data_path: str,
-                      index_path: Optional[str] = None,
-                      shard: Optional[Tuple[int, int]] = None
-                      ) -> Iterable[memoryview]:
+                      index_path: typing.Optional[str] = None,
+                      shard: typing.Optional[typing.Tuple[int, int]] = None
+                      ) -> typing.Iterable[memoryview]:
     """Create an iterator over the tfrecord dataset.
 
     Since the tfrecords file stores each example as bytes, we can
@@ -91,10 +90,10 @@ def tfrecord_iterator(data_path: str,
 
 
 def tfrecord_loader(data_path: str,
-                    description: Dict[str, str],
-                    index_path: Optional[str] = None,
-                    shard: Optional[Tuple[int, int]] = None
-                    ) -> Iterable[Dict[str, np.ndarray]]:
+                    description: typing.Dict[str, str],
+                    index_path: typing.Optional[str] = None,
+                    shard: typing.Optional[typing.Tuple[int, int]] = None
+                    ) -> typing.Iterable[typing.Dict[str, np.ndarray]]:
     """Create an iterator over the (decoded) examples contained within
     the dataset.
 
@@ -153,10 +152,10 @@ def tfrecord_loader(data_path: str,
 
 
 def multi_tfrecord_loader(data_pattern: str,
-                          splits: Dict[str, float],
-                          description: Dict[str, str],
-                          index_pattern: Optional[str] = None
-                          ) -> Iterable[Dict[str, np.ndarray]]:
+                          splits: typing.Dict[str, float],
+                          description: typing.Dict[str, str],
+                          index_pattern: typing.Optional[str] = None
+                          ) -> typing.Iterable[typing.Dict[str, np.ndarray]]:
     """Create an iterator by reading and merging multiple tfrecord datasets.
 
     NOTE: Sharding is currently unavailable for the multi tfrecord loader.
@@ -184,7 +183,8 @@ def multi_tfrecord_loader(data_pattern: str,
     it: iterator
         A repeating iterator that generates batches of data.
     """
-    loaders = [partial(tfrecord_loader, data_path=data_pattern.format(split),
-                       index_path=index_pattern.format(split), description=description)
+    loaders = [functools.partial(tfrecord_loader, data_path=data_pattern.format(split),
+                                 index_path=index_pattern.format(split),
+                                 description=description)
                for split in splits.keys()]
     return iterator_utils.sample_iterators(loaders, list(splits.values()))
