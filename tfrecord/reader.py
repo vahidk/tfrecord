@@ -4,6 +4,7 @@ import functools
 import io
 import os
 import struct
+import typing
 
 import numpy as np
 
@@ -11,15 +12,34 @@ from tfrecord import example_pb2
 from tfrecord import iterator_utils
 
 
-def tfrecord_iterator(data_path, index_path=None, shard=None):
-    """Create an iterator over tfrecord dataset.
+def tfrecord_iterator(data_path: str,
+                      index_path: typing.Optional[str] = None,
+                      shard: typing.Optional[typing.Tuple[int, int]] = None
+                      ) -> typing.Iterable[memoryview]:
+    """Create an iterator over the tfrecord dataset.
 
-    Args:
-      data_path: TFRecord file path.
-      index_path: Index file path.
-      shard: A tuple (index, count) representing the shard information.
-    Returns:
-      An iterator over the dataset.
+    Since the tfrecords file stores each example as bytes, we can
+    define an iterator over `datum_bytes_view`, which is a memoryview
+    object referencing the bytes.
+
+    Params:
+    -------
+    data_path: str
+        TFRecord file path.
+
+    index_path: str, optional, default=None
+        Index file path. Can be set to None if no file is available.
+
+    shard: tuple of ints, optional, default=None
+        A tuple (index, count) representing worker_id and num_workers
+        count. Necessary to evenly split/shard the dataset among many
+        workers (i.e. >1).
+
+    Yields:
+    -------
+    datum_bytes_view: memoryview
+        Object referencing the specified `datum_bytes` contained in the
+        file (for a single record).
     """
     file = io.open(data_path, "rb")
 
@@ -69,17 +89,40 @@ def tfrecord_iterator(data_path, index_path=None, shard=None):
     file.close()
 
 
-def tfrecord_loader(data_path, index_path, description, shard=None):
-    """Create an iterator from a tfrecord dataset. 
+def tfrecord_loader(data_path: str,
+                    description: typing.Dict[str, str],
+                    index_path: typing.Optional[str] = None,
+                    shard: typing.Optional[typing.Tuple[int, int]] = None
+                    ) -> typing.Iterable[typing.Dict[str, np.ndarray]]:
+    """Create an iterator over the (decoded) examples contained within
+    the dataset.
 
-    Args:
-        data_path: Path of the input data.
-        index_path: Path of index file. This can be set to None if not available.
-        description: A dictionary of key and values where keys are the name of the features and values correspond to
-                     data type. The data type can be "byte", "float" or "int".
-        shard: A tuple (index, count) representing the shard information. (default : None)
-    Returns:
-        An iterator that generates individual data records.
+    Decodes the raw bytes of the features (contained within the
+    dataset) into its respective format.
+
+    Params:
+    -------
+    data_path: str
+        TFRecord file path.
+
+    description: dict of str
+        Dictionary of (key, value) pairs where keys are the name of the
+        features and values correspond to data type. The data type can
+        be "byte", "float" or "int".
+
+    index_path: str, optional, default=None
+        Index file path. Can be set to None if no file is available.
+
+    shard: tuple of ints, optional, default=None
+        A tuple (index, count) representing worker_id and num_workers
+        count. Necessary to evenly split/shard the dataset among many
+        workers (i.e. >1).
+
+    Yields:
+    -------
+    features: dict of {str, np.ndarray}
+        Decoded bytes of the features into its respective data type (for
+        an individual record).
     """
     record_iterator = tfrecord_iterator(data_path, index_path, shard)
 
@@ -108,19 +151,40 @@ def tfrecord_loader(data_path, index_path, description, shard=None):
         yield features
 
 
-def multi_tfrecord_loader(data_pattern, index_pattern, splits, description):
+def multi_tfrecord_loader(data_pattern: str,
+                          splits: typing.Dict[str, float],
+                          description: typing.Dict[str, str],
+                          index_pattern: typing.Optional[str] = None
+                          ) -> typing.Iterable[typing.Dict[str, np.ndarray]]:
     """Create an iterator by reading and merging multiple tfrecord datasets.
 
-    Args:
-        data_pattern: Input data path pattern.
-        index_pattern: Input index path pattern.
-        splits: Dictionary of keys and values, the key is used in conjunction with pattern to construct the path, the
-                values determine the contribution of each split to the batch.
-        description: Description of data. See tfrecord_loader.
+    NOTE: Sharding is currently unavailable for the multi tfrecord loader.
+
+    Params:
+    -------
+    data_pattern: str
+        Input data path pattern.
+
+    splits: dict
+        Dictionary of (key, value) pairs, where the key is used to
+        construct the data and index path(s) and the value determines
+        the contribution of each split to the batch.
+
+    description: dict of str
+        Dictionary of (key, value) pairs where keys are the name of the
+        features and values correspond to data type. The data type can
+        be "byte", "float" or "int".
+
+    index_pattern: str, optional, default=None
+        Input index path pattern.
+
     Returns:
+    --------
+    it: iterator
         A repeating iterator that generates batches of data.
     """
     loaders = [functools.partial(tfrecord_loader, data_path=data_pattern.format(split),
-                                 index_path=index_pattern.format(split), description=description)
+                                 index_path=index_pattern.format(split),
+                                 description=description)
                for split in splits.keys()]
     return iterator_utils.sample_iterators(loaders, list(splits.values()))
