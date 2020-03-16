@@ -75,8 +75,12 @@ def tfrecord_loader(data_path, index_path, description=None, shard=None):
     Args:
         data_path: Path of the input data.
         index_path: Path of index file. This can be set to None if not available.
-        description: List of keys to extract from each record. If None, then all
-            features contained in the file are extracted. (default: None)
+        description: List of keys or dict of (key, value) pairs to extract
+            from each record. The keys represent the name of the features
+            and the values ("byte", "float", or "int") correspond to the
+            data type. If dtypes are provided, then they are verified
+            against the inferred type for compatibility purposes. If None,
+            then all features contained in the file are extracted. (default: None)
         shard: A tuple (index, count) representing the shard information. (default : None)
     Returns:
         An iterator that generates individual data records.
@@ -87,24 +91,38 @@ def tfrecord_loader(data_path, index_path, description=None, shard=None):
         example = example_pb2.Example()
         example.ParseFromString(record)
 
-        features = {}
         all_keys = list(example.features.feature.keys())
         if description is None:
-            description = all_keys
-        for key in description.keys():
+            description = dict.fromkeys(all_keys, None)
+        elif isinstance(description, list):
+            description = dict.fromkeys(description, None)
+
+        features = {}
+        for key, typename in description.items():
             if key not in all_keys:
                 raise KeyError(f"Key {key} doesn't exist (select from {all_keys})!")
             # NOTE: We assume that each key in the example has only one field
             # (either "bytes_list", "float_list", or "int64_list")!
             field = example.features.feature[key].ListFields()[0]
-            tf_typename, value = field[0].name, field[1].value
+            inferred_typename, value = field[0].name, field[1].value
+            if typename is not None:
+                typename_mapping = {
+                    "byte": "bytes_list",
+                    "float": "float_list",
+                    "int": "int64_list"
+                }
+                tf_typename = typename_mapping[typename]
+                if tf_typename != inferred_typename:
+                    reversed_mapping = {v:k for k, v in typename_mapping.items()}
+                    raise TypeError(f"Incompatible type '{typename}' for {key} "
+                                    f"(should be {reversed_mapping[inferred_typename]}).")
 
             # Decode raw bytes into respective data types
-            if tf_typename == "bytes_list":
+            if inferred_typename == "bytes_list":
                 value = np.frombuffer(value[0], dtype=np.uint8)
-            elif tf_typename == "float_list":
+            elif inferred_typename == "float_list":
                 value = np.array(value, dtype=np.float32)
-            elif tf_typename == "int64_list":
+            elif inferred_typename == "int64_list":
                 value = np.array(value, dtype=np.int32)
             features[key] = value
         yield features
