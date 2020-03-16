@@ -6,14 +6,21 @@ import warnings
 import numpy as np
 
 
-def sample_iterators(itrs: typing.List[typing.Iterator],
+def cycle(iterator_fn: typing.Callable) -> typing.Iterable[typing.Any]:
+    """Create a repeating iterator from an iterator generator."""
+    while True:
+        for element in iterator_fn():
+            yield element
+
+
+def sample_iterators(iterators: typing.List[typing.Iterator],
                      ratios: typing.List[int]) -> typing.Iterable[typing.Any]:
     """Retrieve info generated from the iterator(s) according to their
     sampling ratios.
 
     Params:
     -------
-    itrs: list of itrators
+    iterators: list of iterators
         All iterators (one for each file).
 
     ratios: list of int
@@ -25,28 +32,21 @@ def sample_iterators(itrs: typing.List[typing.Iterator],
         Decoded bytes of features into its respective data types from
         an iterator (based off their sampling ratio).
     """
-
-    def cycle(iterator_fn: typing.Callable):
-        """Create a repeating iterator from an iterator generator."""
-        while True:
-            for element in iterator_fn():
-                yield element
-
-    itrs = [cycle(iterator) for iterator in itrs]
+    iterators = [cycle(iterator) for iterator in iterators]
     ratios = np.array(ratios)
     ratios = ratios / ratios.sum()
     while True:
         choice = np.random.choice(len(ratios), p=ratios)
-        yield next(itrs[choice])
+        yield next(iterators[choice])
 
 
-def shuffle_iterator(itr: typing.Iterator,
+def shuffle_iterator(iterator: typing.Iterator,
                      queue_size: int) -> typing.Iterable[typing.Any]:
     """Shuffle elements contained in an iterator.
 
     Params:
     -------
-    itr: iterator
+    iterator: iterator
         The iterator.
 
     queue_size: int
@@ -62,15 +62,15 @@ def shuffle_iterator(itr: typing.Iterator,
     buffer = []
     try:
         for _ in range(queue_size):
-            buffer.append(next(itr))
+            buffer.append(next(iterator))
     except StopIteration:
         warnings.warn("Number of elements in the iterator is less than the "
-                      f"queue size (s={queue_size}).")
+                      f"queue size (N={queue_size}).")
     while buffer:
         index = np.random.randint(len(buffer))
         try:
             item = buffer[index]
-            buffer[index] = next(itr)
+            buffer[index] = next(iterator)
             yield item
         except StopIteration:
             yield buffer.pop(index)
