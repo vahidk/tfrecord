@@ -18,13 +18,16 @@ class TFRecordDataset(torch.utils.data.IterableDataset):
     data_path: str
         The path to the tfrecords file.
 
-    description: dict of (str, str), optional, default=None
-        Dictionary of (key, value) pairs where keys are the name of the
-        features and values correspond to data type. The data type can
-        be "byte", "float" or "int".
-
     index_path: str
         The path to the index file.
+
+    description: list or dict of str, optional, default=None
+        List of keys or dict of (key, value) pairs to extract from each
+        record. The keys represent the name of the features and the
+        values ("byte", "float", or "int") correspond to the data type.
+        If dtypes are provided, then they are verified against the
+        inferred type for compatibility purposes. If None (default),
+        then all features contained in the file are extracted.
 
     shuffle_queue_size: int, optional, default=None
         Length of buffer. Determines how many records are queued to
@@ -33,7 +36,7 @@ class TFRecordDataset(torch.utils.data.IterableDataset):
     def __init__(self,
                  data_path: str,
                  index_path: str,
-                 description: typing.Dict[str, str],
+                 description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
                  shuffle_queue_size: typing.Optional[int] = None) -> None:
         super(TFRecordDataset, self).__init__()
         self.data_path = data_path
@@ -72,10 +75,13 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
         construct the data and index path(s) and the value determines
         the contribution of each split to the batch.
 
-    description: dict of str
-        Dictionary of (key, value) pairs where keys are the name of the
-        features and values correspond to data type. The data type can
-        be "byte", "float" or "int".
+    description: list or dict of str, optional, default=None
+        List of keys or dict of (key, value) pairs to extract from each
+        record. The keys represent the name of the features and the
+        values ("byte", "float", or "int") correspond to the data type.
+        If dtypes are provided, then they are verified against the
+        inferred type for compatibility purposes. If None (default),
+        then all features contained in the file are extracted.
 
     shuffle_queue_size: int, optional, default=None
         Length of buffer. Determines how many records are queued to
@@ -86,7 +92,7 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
                  data_pattern: str,
                  index_pattern: str,
                  splits: typing.Dict[str, float],
-                 description: typing.Dict[str, str],
+                 description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
                  shuffle_queue_size: typing.Optional[int] = None) -> None:
         super(MultiTFRecordDataset, self).__init__()
         self.data_pattern = data_pattern
