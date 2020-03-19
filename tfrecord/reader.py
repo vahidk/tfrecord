@@ -90,8 +90,8 @@ def tfrecord_iterator(data_path: str,
 
 
 def tfrecord_loader(data_path: str,
+                    index_path: str,
                     description: typing.Dict[str, str],
-                    index_path: typing.Optional[str] = None,
                     shard: typing.Optional[typing.Tuple[int, int]] = None
                     ) -> typing.Iterable[typing.Dict[str, np.ndarray]]:
     """Create an iterator over the (decoded) examples contained within
@@ -105,13 +105,13 @@ def tfrecord_loader(data_path: str,
     data_path: str
         TFRecord file path.
 
+    index_path: str
+        Index file path. Can be set to None if no file is available.
+
     description: dict of str
         Dictionary of (key, value) pairs where keys are the name of the
         features and values correspond to data type. The data type can
         be "byte", "float" or "int".
-
-    index_path: str, optional, default=None
-        Index file path. Can be set to None if no file is available.
 
     shard: tuple of ints, optional, default=None
         A tuple (index, count) representing worker_id and num_workers
@@ -152,9 +152,9 @@ def tfrecord_loader(data_path: str,
 
 
 def multi_tfrecord_loader(data_pattern: str,
+                          index_pattern: str,
                           splits: typing.Dict[str, float],
-                          description: typing.Dict[str, str],
-                          index_pattern: typing.Optional[str] = None
+                          description: typing.Dict[str, str]
                           ) -> typing.Iterable[typing.Dict[str, np.ndarray]]:
     """Create an iterator by reading and merging multiple tfrecord datasets.
 
@@ -164,6 +164,9 @@ def multi_tfrecord_loader(data_pattern: str,
     -------
     data_pattern: str
         Input data path pattern.
+
+    index_pattern: str, optional, default=None
+        Input index path pattern.
 
     splits: dict
         Dictionary of (key, value) pairs, where the key is used to
@@ -175,16 +178,14 @@ def multi_tfrecord_loader(data_pattern: str,
         features and values correspond to data type. The data type can
         be "byte", "float" or "int".
 
-    index_pattern: str, optional, default=None
-        Input index path pattern.
-
     Returns:
     --------
     it: iterator
         A repeating iterator that generates batches of data.
     """
     loaders = [functools.partial(tfrecord_loader, data_path=data_pattern.format(split),
-                                 index_path=index_pattern.format(split),
+                                 index_path=index_pattern.format(split) \
+                                     if index_pattern is not None else None,
                                  description=description)
                for split in splits.keys()]
     return iterator_utils.sample_iterators(loaders, list(splits.values()))

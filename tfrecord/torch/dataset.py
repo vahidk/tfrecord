@@ -1,3 +1,5 @@
+"""Load tfrecord files into torch datasets."""
+
 import typing
 import numpy as np
 
@@ -16,13 +18,13 @@ class TFRecordDataset(torch.utils.data.IterableDataset):
     data_path: str
         The path to the tfrecords file.
 
-    index_path: str
-        The path to the index file.
-
     description: dict of (str, str), optional, default=None
         Dictionary of (key, value) pairs where keys are the name of the
         features and values correspond to data type. The data type can
         be "byte", "float" or "int".
+
+    index_path: str
+        The path to the index file.
 
     shuffle_queue_size: int, optional, default=None
         Length of buffer. Determines how many records are queued to
@@ -31,7 +33,7 @@ class TFRecordDataset(torch.utils.data.IterableDataset):
     def __init__(self,
                  data_path: str,
                  index_path: str,
-                 description: typing.Optional[typing.Dict[str, str]] = None,
+                 description: typing.Dict[str, str],
                  shuffle_queue_size: typing.Optional[int] = None) -> None:
         super(TFRecordDataset, self).__init__()
         self.data_path = data_path
@@ -62,13 +64,13 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
     data_pattern: str
         Input data path pattern.
 
+    index_pattern: str
+        Input index path pattern.
+
     splits: dict
         Dictionary of (key, value) pairs, where the key is used to
         construct the data and index path(s) and the value determines
         the contribution of each split to the batch.
-
-    index_pattern: str, optional, default=None
-        Input index path pattern.
 
     description: dict of str
         Dictionary of (key, value) pairs where keys are the name of the
@@ -82,9 +84,9 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
 
     def __init__(self,
                  data_pattern: str,
-                 splits: typing.Dict[str, int],
-                 index_pattern: typing.Optional[str] = None,
-                 description: typing.Optional[typing.Dict[str, str]] = None,
+                 index_pattern: str,
+                 splits: typing.Dict[str, float],
+                 description: typing.Dict[str, str],
                  shuffle_queue_size: typing.Optional[int] = None) -> None:
         super(MultiTFRecordDataset, self).__init__()
         self.data_pattern = data_pattern
