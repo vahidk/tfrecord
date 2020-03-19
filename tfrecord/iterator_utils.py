@@ -1,5 +1,7 @@
 """Iterator utils."""
 
+from __future__ import division
+
 import typing
 import warnings
 
