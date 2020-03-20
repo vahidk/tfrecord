@@ -71,15 +71,20 @@ class TFRecordWriter:
         proto: bytes
             Serialized tfrecord.example to bytes.
         """
-        serialize = {
+        feature_map = {
             "byte": lambda f: example_pb2.Feature(
-                bytes_list=example_pb2.BytesList(value=[f])),
+                bytes_list=example_pb2.BytesList(value=f)),
             "float": lambda f: example_pb2.Feature(
                 float_list=example_pb2.FloatList(value=f)),
             "int": lambda f: example_pb2.Feature(
                 int64_list=example_pb2.Int64List(value=f))
         }
 
-        features = {key: serialize[dtype](value) for key, (value, dtype) in datum.items()}
+        def serialize(value, dtype):
+            if not isinstance(value, (list, tuple, np.ndarray)):
+                value = [value]
+            return feature_map[dtype](value)
+
+        features = {key: serialize(value, dtype) for key, (value, dtype) in datum.items()}
         example_proto = example_pb2.Example(features=example_pb2.Features(feature=features))
         return example_proto.SerializeToString()
