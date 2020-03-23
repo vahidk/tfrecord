@@ -128,13 +128,6 @@ def tfrecord_loader(data_path: str,
         an individual record).
     """
 
-    transform = transform or (lambda x: x)
-    removed_fields = removed_fields or []
-
-    different_keys = set(removed_fields) - description.keys()
-
-    assert len(different_keys) == 0, f"Extra keys in different_keys : '{', '.join(different_keys)}'"
-
     typename_mapping = {
         "byte": "bytes_list",
         "float": "float_list",

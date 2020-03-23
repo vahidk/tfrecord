@@ -45,16 +45,13 @@ class TFRecordDataset(torch.utils.data.IterableDataset):
                  index_path: typing.Union[str, None],
                  description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
                  shuffle_queue_size: typing.Optional[int] = None,
-                 transform: typing.Callable[[dict], typing.Any] = None,
-                 removed_fields: typing.List[str] = None,
+                 transform: typing.Callable[[dict], typing.Any] = None
                  ) -> None:
         super(TFRecordDataset, self).__init__()
         self.data_path = data_path
         self.index_path = index_path
         self.description = description
         self.shuffle_queue_size = shuffle_queue_size
-        self.transform_func = transform
-        self.removed_fields = removed_fields
         self.transform = transform or (lambda x: x)
 
     def __iter__(self):
