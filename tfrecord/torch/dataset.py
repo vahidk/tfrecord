@@ -35,13 +35,8 @@ class TFRecordDataset(torch.utils.data.IterableDataset):
 
     transform : a callable, default = None
         A function that takes in the input `features` i.e the dict
-        provided in the description and returns a desirable output.
-        It's useful for having transformation on our input to get
-        desired output.
-
-    removed_fields : list of str, default=None
-        One of the list of keys that we extract from each record
-        but don't want to return it.
+        provided in the description, transforms it and returns a
+        desirable output.
 
     """
 
@@ -60,6 +55,7 @@ class TFRecordDataset(torch.utils.data.IterableDataset):
         self.shuffle_queue_size = shuffle_queue_size
         self.transform_func = transform
         self.removed_fields = removed_fields
+        self.transform = transform or (lambda x: x)
 
     def __iter__(self):
         worker_info = torch.utils.data.get_worker_info()
@@ -69,11 +65,11 @@ class TFRecordDataset(torch.utils.data.IterableDataset):
         else:
             shard = None
         it = reader.tfrecord_loader(
-            self.data_path, self.index_path, self.description, shard,
-            transform=self.transform_func, removed_fields=self.removed_fields)
+            self.data_path, self.index_path, self.description, shard)
         if self.shuffle_queue_size:
             it = iterator_utils.shuffle_iterator(it, self.shuffle_queue_size)
-        return it
+
+        return map(self.transform, it)
 
 
 class MultiTFRecordDataset(torch.utils.data.IterableDataset):
@@ -107,13 +103,8 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
 
     transform : a callable, default = None
         A function that takes in the input `features` i.e the dict
-        provided in the description and returns a desirable output.
-        It's useful for having transformation on our input to get
-        desired output.
-
-    removed_fields : list of str, default=None
-        One of the list of keys that we extract from each record
-        but don't want to return it.
+        provided in the description, transforms it and returns a
+        desirable output.
 
     """
 
@@ -123,24 +114,22 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
                  splits: typing.Dict[str, float],
                  description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
                  shuffle_queue_size: typing.Optional[int] = None,
-                 transform: typing.Callable[[dict], typing.Any] = None,
-                 removed_fields: typing.List[str] = None) -> None:
+                 transform: typing.Callable[[dict], typing.Any] = None) -> None:
         super(MultiTFRecordDataset, self).__init__()
         self.data_pattern = data_pattern
         self.index_pattern = index_pattern
         self.splits = splits
         self.description = description
         self.shuffle_queue_size = shuffle_queue_size
-        self.transform_func = transform
-        self.removed_fields = removed_fields
+        self.transform = transform or (lambda x: x)
 
     def __iter__(self):
         worker_info = torch.utils.data.get_worker_info()
         if worker_info is not None:
             np.random.seed(worker_info.seed % np.iinfo(np.uint32).max)
         it = reader.multi_tfrecord_loader(
-            self.data_pattern, self.index_pattern, self.splits, self.description,
-            transform=self.transform_func, removed_fields=self.removed_fields)
+            self.data_pattern, self.index_pattern, self.splits, self.description)
         if self.shuffle_queue_size:
             it = iterator_utils.shuffle_iterator(it, self.shuffle_queue_size)
-        return it
+
+        return map(self.transform, it)

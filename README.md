@@ -78,31 +78,27 @@ for record in loader:
 ### Transforming input
 
 You can optionally pass a function as `transform` argument to perform post processing of features before returning. 
-This can for example be used to decode images or normalize colors to a certain range
-There might also be use cases to remove a field after performing a transformation, this can be leveraged using the `removed_fields`.
+This can for example be used to decode images or normalize colors to a certain range or pad variable length sequence.
  
 ```python
 import tfrecord
+import cv2
 
-def transformation(features):
-    # modify an existing feature
-    features["feature_1"] = features["feature_1"] * 2
-    # create a new feature
-    features["feature_2"] = features["index"] * 4
+def decode_image(features):
+    # get BGR image from bytes
+    features["image"] = cv2.imdecode(features["image"], -1)
     return features
 
 
 description = {
-    "index": "int",
-    "feature_1": "float",
+    "image": "bytes",
 }
 
 dataset = tfrecord.torch.TFRecordDataset("/path/to/data.tfrecord",
                                          index_path=None,
-                                         transform=transformation,
-                                         removed_fields=["index"])
+                                         description=description,
+                                         transform=decode_image)
 
 data = next(iter(dataset))
-
-assert set(data.keys()) == {"feature_1", "feature_2"}, "Expected keys don't match."
+print(data)
 ```
