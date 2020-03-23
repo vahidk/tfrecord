@@ -45,7 +45,7 @@ def tfrecord_iterator(data_path: str,
 
     length_bytes = bytearray(8)
     crc_bytes = bytearray(4)
-    datum_bytes = bytearray(1024*1024)
+    datum_bytes = bytearray(1024 * 1024)
 
     def read_records(start_offset=None, end_offset=None):
         nonlocal length_bytes, crc_bytes, datum_bytes
@@ -92,7 +92,9 @@ def tfrecord_iterator(data_path: str,
 def tfrecord_loader(data_path: str,
                     index_path: str,
                     description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
-                    shard: typing.Optional[typing.Tuple[int, int]] = None
+                    shard: typing.Optional[typing.Tuple[int, int]] = None,
+                    transform_func: typing.Callable[[dict], typing.Any] = None,
+                    removed_fields: typing.List[str] = None,
                     ) -> typing.Iterable[typing.Dict[str, np.ndarray]]:
     """Create an iterator over the (decoded) examples contained within
     the dataset.
@@ -121,12 +123,39 @@ def tfrecord_loader(data_path: str,
         count. Necessary to evenly split/shard the dataset among many
         workers (i.e. >1).
 
+    transform_func : a callable, default = None
+        A function that takes in the input `features` i.e the dict
+        provided in the description and returns a desirable output.
+        It's useful for having transformation on our input to get
+        desired output.
+
+    removed_fields : list of str, default=None
+        One of the list of keys that we extract from each record
+        but don't want to return it.
+
+
     Yields:
     -------
-    features: dict of {str, np.ndarray}
+    features: dict of {str, np.ndarray} or Any
         Decoded bytes of the features into its respective data type (for
-        an individual record).
+        an individual record) if no transformation is provided.
+        However if transformation is provided it can return anything
+        depending on the transformation.
     """
+
+    transform_func = transform_func or (lambda x: x)
+    removed_fields = removed_fields or []
+
+    different_keys = set(removed_fields) - description.keys()
+
+    assert len(different_keys) == 0, f"Extra keys in different_keys : '{', '.join(different_keys)}'"
+
+    typename_mapping = {
+        "byte": "bytes_list",
+        "float": "float_list",
+        "int": "int64_list"
+    }
+
     record_iterator = tfrecord_iterator(data_path, index_path, shard)
 
     for record in record_iterator:
@@ -148,14 +177,9 @@ def tfrecord_loader(data_path: str,
             field = example.features.feature[key].ListFields()[0]
             inferred_typename, value = field[0].name, field[1].value
             if typename is not None:
-                typename_mapping = {
-                    "byte": "bytes_list",
-                    "float": "float_list",
-                    "int": "int64_list"
-                }
                 tf_typename = typename_mapping[typename]
                 if tf_typename != inferred_typename:
-                    reversed_mapping = {v:k for k, v in typename_mapping.items()}
+                    reversed_mapping = {v: k for k, v in typename_mapping.items()}
                     raise TypeError(f"Incompatible type '{typename}' for `{key}` "
                                     f"(should be '{reversed_mapping[inferred_typename]}').")
 
@@ -167,14 +191,21 @@ def tfrecord_loader(data_path: str,
             elif inferred_typename == "int64_list":
                 value = np.array(value, dtype=np.int32)
             features[key] = value
-        yield features
+
+        features_to_return = transform_func(features)
+        for key in removed_fields:
+            if key in removed_fields:
+                features_to_return.pop(key)
+
+        yield features_to_return
 
 
 def multi_tfrecord_loader(data_pattern: str,
                           index_pattern: str,
                           splits: typing.Dict[str, float],
-                          description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None
-                          ) -> typing.Iterable[typing.Dict[str, np.ndarray]]:
+                          description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
+                          transform_func: typing.Callable[[dict], typing.Any] = None,
+                          removed_fields: typing.List[str] = None) -> typing.Iterable[typing.Dict[str, np.ndarray]]:
     """Create an iterator by reading and merging multiple tfrecord datasets.
 
     NOTE: Sharding is currently unavailable for the multi tfrecord loader.
@@ -200,6 +231,9 @@ def multi_tfrecord_loader(data_pattern: str,
         inferred type for compatibility purposes. If None (default),
         then all features contained in the file are extracted.
 
+    transform_func : Function to apply on features. See tfrecord_loader.
+    removed_fields : Keys to remove while fetching. See tfrecord_loader.
+
     Returns:
     --------
     it: iterator
@@ -208,6 +242,8 @@ def multi_tfrecord_loader(data_pattern: str,
     loaders = [functools.partial(tfrecord_loader, data_path=data_pattern.format(split),
                                  index_path=index_pattern.format(split) \
                                      if index_pattern is not None else None,
-                                 description=description)
+                                 description=description,
+                                 transform_func=transform_func,
+                                 removed_fields=removed_fields)
                for split in splits.keys()]
     return iterator_utils.sample_iterators(loaders, list(splits.values()))
