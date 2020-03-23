@@ -85,7 +85,7 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
     data_pattern: str
         Input data path pattern.
 
-    index_pattern: str
+    index_pattern: str or None
         Input index path pattern.
 
     splits: dict

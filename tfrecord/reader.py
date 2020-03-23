@@ -107,7 +107,7 @@ def tfrecord_loader(data_path: str,
     data_path: str
         TFRecord file path.
 
-    index_path: str
+    index_path: str or None
         Index file path. Can be set to None if no file is available.
 
     description: list or dict of str, optional, default=None
@@ -215,7 +215,7 @@ def multi_tfrecord_loader(data_pattern: str,
     data_pattern: str
         Input data path pattern.
 
-    index_pattern: str
+    index_pattern: str or None
         Input index path pattern.
 
     splits: dict
