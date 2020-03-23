@@ -4,6 +4,7 @@ import functools
 import io
 import os
 import struct
+import typing
 
 import numpy as np
 
@@ -11,15 +12,34 @@ from tfrecord import example_pb2
 from tfrecord import iterator_utils
 
 
-def tfrecord_iterator(data_path, index_path=None, shard=None):
-    """Create an iterator over tfrecord dataset.
+def tfrecord_iterator(data_path: str,
+                      index_path: typing.Optional[str] = None,
+                      shard: typing.Optional[typing.Tuple[int, int]] = None
+                      ) -> typing.Iterable[memoryview]:
+    """Create an iterator over the tfrecord dataset.
 
-    Args:
-      data_path: TFRecord file path.
-      index_path: Index file path.
-      shard: A tuple (index, count) representing the shard information.
-    Returns:
-      An iterator over the dataset.
+    Since the tfrecords file stores each example as bytes, we can
+    define an iterator over `datum_bytes_view`, which is a memoryview
+    object referencing the bytes.
+
+    Params:
+    -------
+    data_path: str
+        TFRecord file path.
+
+    index_path: str, optional, default=None
+        Index file path. Can be set to None if no file is available.
+
+    shard: tuple of ints, optional, default=None
+        A tuple (index, count) representing worker_id and num_workers
+        count. Necessary to evenly split/shard the dataset among many
+        workers (i.e. >1).
+
+    Yields:
+    -------
+    datum_bytes_view: memoryview
+        Object referencing the specified `datum_bytes` contained in the
+        file (for a single record).
     """
     file = io.open(data_path, "rb")
 
@@ -69,17 +89,43 @@ def tfrecord_iterator(data_path, index_path=None, shard=None):
     file.close()
 
 
-def tfrecord_loader(data_path, index_path, description, shard=None):
-    """Create an iterator from a tfrecord dataset. 
+def tfrecord_loader(data_path: str,
+                    index_path: str,
+                    description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
+                    shard: typing.Optional[typing.Tuple[int, int]] = None
+                    ) -> typing.Iterable[typing.Dict[str, np.ndarray]]:
+    """Create an iterator over the (decoded) examples contained within
+    the dataset.
 
-    Args:
-        data_path: Path of the input data.
-        index_path: Path of index file. This can be set to None if not available.
-        description: A dictionary of key and values where keys are the name of the features and values correspond to
-                     data type. The data type can be "byte", "float" or "int".
-        shard: A tuple (index, count) representing the shard information. (default : None)
-    Returns:
-        An iterator that generates individual data records.
+    Decodes raw bytes of the features (contained within the dataset)
+    into its respective format.
+
+    Params:
+    -------
+    data_path: str
+        TFRecord file path.
+
+    index_path: str
+        Index file path. Can be set to None if no file is available.
+
+    description: list or dict of str, optional, default=None
+        List of keys or dict of (key, value) pairs to extract from each
+        record. The keys represent the name of the features and the
+        values ("byte", "float", or "int") correspond to the data type.
+        If dtypes are provided, then they are verified against the
+        inferred type for compatibility purposes. If None (default),
+        then all features contained in the file are extracted.
+
+    shard: tuple of ints, optional, default=None
+        A tuple (index, count) representing worker_id and num_workers
+        count. Necessary to evenly split/shard the dataset among many
+        workers (i.e. >1).
+
+    Yields:
+    -------
+    features: dict of {str, np.ndarray}
+        Decoded bytes of the features into its respective data type (for
+        an individual record).
     """
     record_iterator = tfrecord_iterator(data_path, index_path, shard)
 
@@ -87,40 +133,81 @@ def tfrecord_loader(data_path, index_path, description, shard=None):
         example = example_pb2.Example()
         example.ParseFromString(record)
 
+        all_keys = list(example.features.feature.keys())
+        if description is None:
+            description = dict.fromkeys(all_keys, None)
+        elif isinstance(description, list):
+            description = dict.fromkeys(description, None)
+
         features = {}
         for key, typename in description.items():
-            tf_typename = {
-                "byte": "bytes_list",
-                "float": "float_list",
-                "int": "int64_list"
-            }[typename]
-            if key not in example.features.feature:
-                raise ValueError("Key {} doesn't exist.".format(key))
-            value = getattr(example.features.feature[key], tf_typename).value
-            if typename == "byte":
+            if key not in all_keys:
+                raise KeyError(f"Key {key} doesn't exist (select from {all_keys})!")
+            # NOTE: We assume that each key in the example has only one field
+            # (either "bytes_list", "float_list", or "int64_list")!
+            field = example.features.feature[key].ListFields()[0]
+            inferred_typename, value = field[0].name, field[1].value
+            if typename is not None:
+                typename_mapping = {
+                    "byte": "bytes_list",
+                    "float": "float_list",
+                    "int": "int64_list"
+                }
+                tf_typename = typename_mapping[typename]
+                if tf_typename != inferred_typename:
+                    reversed_mapping = {v:k for k, v in typename_mapping.items()}
+                    raise TypeError(f"Incompatible type '{typename}' for `{key}` "
+                                    f"(should be '{reversed_mapping[inferred_typename]}').")
+
+            # Decode raw bytes into respective data types
+            if inferred_typename == "bytes_list":
                 value = np.frombuffer(value[0], dtype=np.uint8)
-            elif typename == "float":
+            elif inferred_typename == "float_list":
                 value = np.array(value, dtype=np.float32)
-            elif typename == "int":
+            elif inferred_typename == "int64_list":
                 value = np.array(value, dtype=np.int32)
             features[key] = value
-
         yield features
 
 
-def multi_tfrecord_loader(data_pattern, index_pattern, splits, description):
+def multi_tfrecord_loader(data_pattern: str,
+                          index_pattern: str,
+                          splits: typing.Dict[str, float],
+                          description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None
+                          ) -> typing.Iterable[typing.Dict[str, np.ndarray]]:
     """Create an iterator by reading and merging multiple tfrecord datasets.
 
-    Args:
-        data_pattern: Input data path pattern.
-        index_pattern: Input index path pattern.
-        splits: Dictionary of keys and values, the key is used in conjunction with pattern to construct the path, the
-                values determine the contribution of each split to the batch.
-        description: Description of data. See tfrecord_loader.
+    NOTE: Sharding is currently unavailable for the multi tfrecord loader.
+
+    Params:
+    -------
+    data_pattern: str
+        Input data path pattern.
+
+    index_pattern: str, optional, default=None
+        Input index path pattern.
+
+    splits: dict
+        Dictionary of (key, value) pairs, where the key is used to
+        construct the data and index path(s) and the value determines
+        the contribution of each split to the batch.
+
+    description: list or dict of str, optional, default=None
+        List of keys or dict of (key, value) pairs to extract from each
+        record. The keys represent the name of the features and the
+        values ("byte", "float", or "int") correspond to the data type.
+        If dtypes are provided, then they are verified against the
+        inferred type for compatibility purposes. If None (default),
+        then all features contained in the file are extracted.
+
     Returns:
+    --------
+    it: iterator
         A repeating iterator that generates batches of data.
     """
     loaders = [functools.partial(tfrecord_loader, data_path=data_pattern.format(split),
-                                 index_path=index_pattern.format(split), description=description)
+                                 index_path=index_pattern.format(split) \
+                                     if index_pattern is not None else None,
+                                 description=description)
                for split in splits.keys()]
     return iterator_utils.sample_iterators(loaders, list(splits.values()))
