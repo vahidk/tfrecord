@@ -65,8 +65,9 @@ class TFRecordDataset(torch.utils.data.IterableDataset):
             self.data_path, self.index_path, self.description, shard)
         if self.shuffle_queue_size:
             it = iterator_utils.shuffle_iterator(it, self.shuffle_queue_size)
-
-        return map(self.transform, it)
+        if self.transform:
+            it = map(self.transform, it)
+        return it
 
 
 class MultiTFRecordDataset(torch.utils.data.IterableDataset):
@@ -118,7 +119,7 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
         self.splits = splits
         self.description = description
         self.shuffle_queue_size = shuffle_queue_size
-        self.transform = transform or (lambda x: x)
+        self.transform = transform
 
     def __iter__(self):
         worker_info = torch.utils.data.get_worker_info()
@@ -128,5 +129,6 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
             self.data_pattern, self.index_pattern, self.splits, self.description)
         if self.shuffle_queue_size:
             it = iterator_utils.shuffle_iterator(it, self.shuffle_queue_size)
-
-        return map(self.transform, it)
+        if self.transform:
+            it = map(self.transform, it)
+        return it
