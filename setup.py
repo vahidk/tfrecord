@@ -12,7 +12,7 @@ install_requires += ["numpy", "protobuf"]
 
 setup(
     name="tfrecord",
-    version="1.11",
+    version="1.10",
     description="TFRecord reader",
     author="Vahid Kazemi",
     author_email="vkazemi@gmail.com",
