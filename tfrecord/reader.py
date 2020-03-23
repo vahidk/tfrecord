@@ -90,11 +90,11 @@ def tfrecord_iterator(data_path: str,
 
 
 def tfrecord_loader(data_path: str,
-                    index_path: str,
+                    index_path: typing.Union[str, None],
                     description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
                     shard: typing.Optional[typing.Tuple[int, int]] = None,
                     transform_func: typing.Callable[[dict], typing.Any] = None,
-                    removed_fields: typing.List[str] = None,
+                    removed_fields: typing.List[str] = None
                     ) -> typing.Iterable[typing.Dict[str, np.ndarray]]:
     """Create an iterator over the (decoded) examples contained within
     the dataset.
@@ -201,7 +201,7 @@ def tfrecord_loader(data_path: str,
 
 
 def multi_tfrecord_loader(data_pattern: str,
-                          index_pattern: str,
+                          index_pattern: typing.Union[str, None],
                           splits: typing.Dict[str, float],
                           description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
                           transform_func: typing.Callable[[dict], typing.Any] = None,
@@ -215,7 +215,7 @@ def multi_tfrecord_loader(data_pattern: str,
     data_pattern: str
         Input data path pattern.
 
-    index_pattern: str, optional, default=None
+    index_pattern: str
         Input index path pattern.
 
     splits: dict

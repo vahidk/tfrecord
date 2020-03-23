@@ -18,7 +18,7 @@ class TFRecordDataset(torch.utils.data.IterableDataset):
     data_path: str
         The path to the tfrecords file.
 
-    index_path: str
+    index_path: str or None
         The path to the index file.
 
     description: list or dict of str, optional, default=None
@@ -47,7 +47,7 @@ class TFRecordDataset(torch.utils.data.IterableDataset):
 
     def __init__(self,
                  data_path: str,
-                 index_path: str,
+                 index_path: typing.Union[str, None],
                  description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
                  shuffle_queue_size: typing.Optional[int] = None,
                  transform_func: typing.Callable[[dict], typing.Any] = None,
@@ -119,7 +119,7 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
 
     def __init__(self,
                  data_pattern: str,
-                 index_pattern: str,
+                 index_pattern: typing.Union[str, None],
                  splits: typing.Dict[str, float],
                  description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
                  shuffle_queue_size: typing.Optional[int] = None) -> None:

@@ -74,3 +74,39 @@ loader = tfrecord.tfrecord_loader("/path/to/data.tfrecord", None, {
 for record in loader:
     print(record["label"])
 ```
+
+### Transforming input
+
+There are use cases when you might not want to return your input directly after reading from the tfrecord files.
+A trivial example could be to normalize your input, if you haven't saved the normalized feature in the files.
+
+You can easily achieve this by leveraging the `transform_func` argument.
+There might also be use cases to remove a field after performing a transformation, this can be leveraged using the `removed_fields`.
+
+Both the arguments mentioned above are available in all readers including `tfrecord.tfrecord_loader` and `tfrecord.torch.TFRecordDataset`.
+ 
+```python
+import tfrecord
+
+def transformation(features):
+    # modify an existing feature
+    features["feature_1"] = features["feature_1"] * 2
+    # create a new feature
+    features["feature_2"] = features["index"] * 4
+    return features
+
+
+description = {
+    "index": "int",
+    "feature_1": "float",
+}
+
+dataset = tfrecord.torch.TFRecordDataset("/path/to/data.tfrecord",
+                                         index_path=None,
+                                         transform_func=transformation,
+                                         removed_fields=["index"])
+
+data = next(iter(dataset))
+
+assert set(data.keys()) == {"feature_1", "feature_2"}, "Expected keys don't match."
+```
