@@ -33,7 +33,7 @@ class TFRecordDataset(torch.utils.data.IterableDataset):
         Length of buffer. Determines how many records are queued to
         sample from.
 
-    transform_func : a callable, default = None
+    transform : a callable, default = None
         A function that takes in the input `features` i.e the dict
         provided in the description and returns a desirable output.
         It's useful for having transformation on our input to get
@@ -50,7 +50,7 @@ class TFRecordDataset(torch.utils.data.IterableDataset):
                  index_path: typing.Union[str, None],
                  description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
                  shuffle_queue_size: typing.Optional[int] = None,
-                 transform_func: typing.Callable[[dict], typing.Any] = None,
+                 transform: typing.Callable[[dict], typing.Any] = None,
                  removed_fields: typing.List[str] = None,
                  ) -> None:
         super(TFRecordDataset, self).__init__()
@@ -58,7 +58,7 @@ class TFRecordDataset(torch.utils.data.IterableDataset):
         self.index_path = index_path
         self.description = description
         self.shuffle_queue_size = shuffle_queue_size
-        self.transform_func = transform_func
+        self.transform_func = transform
         self.removed_fields = removed_fields
 
     def __iter__(self):
@@ -70,7 +70,7 @@ class TFRecordDataset(torch.utils.data.IterableDataset):
             shard = None
         it = reader.tfrecord_loader(
             self.data_path, self.index_path, self.description, shard,
-            transform_func=self.transform_func, removed_fields=self.removed_fields)
+            transform=self.transform_func, removed_fields=self.removed_fields)
         if self.shuffle_queue_size:
             it = iterator_utils.shuffle_iterator(it, self.shuffle_queue_size)
         return it
@@ -105,7 +105,7 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
         Length of buffer. Determines how many records are queued to
         sample from.
 
-        transform_func : a callable, default = None
+    transform : a callable, default = None
         A function that takes in the input `features` i.e the dict
         provided in the description and returns a desirable output.
         It's useful for having transformation on our input to get
@@ -122,13 +122,17 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
                  index_pattern: typing.Union[str, None],
                  splits: typing.Dict[str, float],
                  description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
-                 shuffle_queue_size: typing.Optional[int] = None) -> None:
+                 shuffle_queue_size: typing.Optional[int] = None,
+                 transform: typing.Callable[[dict], typing.Any] = None,
+                 removed_fields: typing.List[str] = None) -> None:
         super(MultiTFRecordDataset, self).__init__()
         self.data_pattern = data_pattern
         self.index_pattern = index_pattern
         self.splits = splits
         self.description = description
         self.shuffle_queue_size = shuffle_queue_size
+        self.transform_func = transform
+        self.removed_fields = removed_fields
 
     def __iter__(self):
         worker_info = torch.utils.data.get_worker_info()
@@ -136,7 +140,7 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
             np.random.seed(worker_info.seed % np.iinfo(np.uint32).max)
         it = reader.multi_tfrecord_loader(
             self.data_pattern, self.index_pattern, self.splits, self.description,
-            transform_func=self.transform_func, removed_fields=self.removed_fields)
+            transform=self.transform_func, removed_fields=self.removed_fields)
         if self.shuffle_queue_size:
             it = iterator_utils.shuffle_iterator(it, self.shuffle_queue_size)
         return it

@@ -93,7 +93,7 @@ def tfrecord_loader(data_path: str,
                     index_path: typing.Union[str, None],
                     description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
                     shard: typing.Optional[typing.Tuple[int, int]] = None,
-                    transform_func: typing.Callable[[dict], typing.Any] = None,
+                    transform: typing.Callable[[dict], typing.Any] = None,
                     removed_fields: typing.List[str] = None
                     ) -> typing.Iterable[typing.Dict[str, np.ndarray]]:
     """Create an iterator over the (decoded) examples contained within
@@ -143,7 +143,7 @@ def tfrecord_loader(data_path: str,
         depending on the transformation.
     """
 
-    transform_func = transform_func or (lambda x: x)
+    transform = transform or (lambda x: x)
     removed_fields = removed_fields or []
 
     different_keys = set(removed_fields) - description.keys()
@@ -192,7 +192,7 @@ def tfrecord_loader(data_path: str,
                 value = np.array(value, dtype=np.int32)
             features[key] = value
 
-        features_to_return = transform_func(features)
+        features_to_return = transform(features)
         for key in removed_fields:
             if key in removed_fields:
                 features_to_return.pop(key)
@@ -204,7 +204,7 @@ def multi_tfrecord_loader(data_pattern: str,
                           index_pattern: typing.Union[str, None],
                           splits: typing.Dict[str, float],
                           description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
-                          transform_func: typing.Callable[[dict], typing.Any] = None,
+                          transform: typing.Callable[[dict], typing.Any] = None,
                           removed_fields: typing.List[str] = None) -> typing.Iterable[typing.Dict[str, np.ndarray]]:
     """Create an iterator by reading and merging multiple tfrecord datasets.
 
@@ -243,7 +243,7 @@ def multi_tfrecord_loader(data_pattern: str,
                                  index_path=index_pattern.format(split) \
                                      if index_pattern is not None else None,
                                  description=description,
-                                 transform_func=transform_func,
+                                 transform=transform,
                                  removed_fields=removed_fields)
                for split in splits.keys()]
     return iterator_utils.sample_iterators(loaders, list(splits.values()))

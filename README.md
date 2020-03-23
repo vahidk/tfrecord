@@ -77,13 +77,9 @@ for record in loader:
 
 ### Transforming input
 
-There are use cases when you might not want to return your input directly after reading from the tfrecord files.
-A trivial example could be to normalize your input, if you haven't saved the normalized feature in the files.
-
-You can easily achieve this by leveraging the `transform_func` argument.
+You can optionally pass a function as `transform` argument to perform post processing of features before returning. 
+This can for example be used to decode images or normalize colors to a certain range
 There might also be use cases to remove a field after performing a transformation, this can be leveraged using the `removed_fields`.
-
-Both the arguments mentioned above are available in all readers including `tfrecord.tfrecord_loader` and `tfrecord.torch.TFRecordDataset`.
  
 ```python
 import tfrecord
@@ -103,7 +99,7 @@ description = {
 
 dataset = tfrecord.torch.TFRecordDataset("/path/to/data.tfrecord",
                                          index_path=None,
-                                         transform_func=transformation,
+                                         transform=transformation,
                                          removed_fields=["index"])
 
 data = next(iter(dataset))
