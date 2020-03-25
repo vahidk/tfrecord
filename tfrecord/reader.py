@@ -45,7 +45,7 @@ def tfrecord_iterator(data_path: str,
 
     length_bytes = bytearray(8)
     crc_bytes = bytearray(4)
-    datum_bytes = bytearray(1024*1024)
+    datum_bytes = bytearray(1024 * 1024)
 
     def read_records(start_offset=None, end_offset=None):
         nonlocal length_bytes, crc_bytes, datum_bytes
@@ -90,9 +90,9 @@ def tfrecord_iterator(data_path: str,
 
 
 def tfrecord_loader(data_path: str,
-                    index_path: str,
+                    index_path: typing.Union[str, None],
                     description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
-                    shard: typing.Optional[typing.Tuple[int, int]] = None
+                    shard: typing.Optional[typing.Tuple[int, int]] = None,
                     ) -> typing.Iterable[typing.Dict[str, np.ndarray]]:
     """Create an iterator over the (decoded) examples contained within
     the dataset.
@@ -105,7 +105,7 @@ def tfrecord_loader(data_path: str,
     data_path: str
         TFRecord file path.
 
-    index_path: str
+    index_path: str or None
         Index file path. Can be set to None if no file is available.
 
     description: list or dict of str, optional, default=None
@@ -127,6 +127,13 @@ def tfrecord_loader(data_path: str,
         Decoded bytes of the features into its respective data type (for
         an individual record).
     """
+
+    typename_mapping = {
+        "byte": "bytes_list",
+        "float": "float_list",
+        "int": "int64_list"
+    }
+
     record_iterator = tfrecord_iterator(data_path, index_path, shard)
 
     for record in record_iterator:
@@ -148,14 +155,9 @@ def tfrecord_loader(data_path: str,
             field = example.features.feature[key].ListFields()[0]
             inferred_typename, value = field[0].name, field[1].value
             if typename is not None:
-                typename_mapping = {
-                    "byte": "bytes_list",
-                    "float": "float_list",
-                    "int": "int64_list"
-                }
                 tf_typename = typename_mapping[typename]
                 if tf_typename != inferred_typename:
-                    reversed_mapping = {v:k for k, v in typename_mapping.items()}
+                    reversed_mapping = {v: k for k, v in typename_mapping.items()}
                     raise TypeError(f"Incompatible type '{typename}' for `{key}` "
                                     f"(should be '{reversed_mapping[inferred_typename]}').")
 
@@ -167,13 +169,14 @@ def tfrecord_loader(data_path: str,
             elif inferred_typename == "int64_list":
                 value = np.array(value, dtype=np.int32)
             features[key] = value
+
         yield features
 
 
 def multi_tfrecord_loader(data_pattern: str,
-                          index_pattern: str,
+                          index_pattern: typing.Union[str, None],
                           splits: typing.Dict[str, float],
-                          description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None
+                          description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
                           ) -> typing.Iterable[typing.Dict[str, np.ndarray]]:
     """Create an iterator by reading and merging multiple tfrecord datasets.
 
@@ -184,7 +187,7 @@ def multi_tfrecord_loader(data_pattern: str,
     data_pattern: str
         Input data path pattern.
 
-    index_pattern: str, optional, default=None
+    index_pattern: str or None
         Input index path pattern.
 
     splits: dict

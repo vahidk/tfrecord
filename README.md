@@ -74,3 +74,31 @@ loader = tfrecord.tfrecord_loader("/path/to/data.tfrecord", None, {
 for record in loader:
     print(record["label"])
 ```
+
+### Transforming input
+
+You can optionally pass a function as `transform` argument to perform post processing of features before returning. 
+This can for example be used to decode images or normalize colors to a certain range or pad variable length sequence.
+ 
+```python
+import tfrecord
+import cv2
+
+def decode_image(features):
+    # get BGR image from bytes
+    features["image"] = cv2.imdecode(features["image"], -1)
+    return features
+
+
+description = {
+    "image": "bytes",
+}
+
+dataset = tfrecord.torch.TFRecordDataset("/path/to/data.tfrecord",
+                                         index_path=None,
+                                         description=description,
+                                         transform=decode_image)
+
+data = next(iter(dataset))
+print(data)
+```
