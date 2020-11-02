@@ -100,9 +100,42 @@ def decode_bytes(inferred_typename: str, value):
     return value
 
 
+def process_feature(feature: example_pb2.Feature,
+                    typename: str,
+                    typename_mapping: dict):
+    # NOTE: We assume that each key in the example has only one field
+    # (either "bytes_list", "float_list", or "int64_list")!
+    field = feature.ListFields()[0]
+    inferred_typename, value = field[0].name, field[1].value
 
-def extract_features(features, description):
-    all_keys = list(features.feature.keys())
+    if typename is not None:
+        tf_typename = typename_mapping[typename]
+        if tf_typename != inferred_typename:
+            reversed_mapping = {v: k for k, v in typename_mapping.items()}
+            raise TypeError(f"Incompatible type '{typename}' for `{key}` "
+                        f"(should be '{reversed_mapping[inferred_typename]}').")
+
+    return decode_bytes(inferred_typename, value)
+
+
+def extract_features(features, description, typename_mapping):
+    all_keys = list(features.keys())
+    if description is None:
+        description = dict.fromkeys(all_keys, None)
+    elif isinstance(description, list):
+        description = dict.fromkeys(description, None)
+
+    processed_features = {}
+    for key, typename in description.items():
+        if key not in all_keys:
+            raise KeyError(f"Key {key} doesn't exist (select from {all_keys})!")
+        processed_features[key] = process_feature(features[key], typename, typename_mapping)
+
+    return processed_features
+
+
+def extract_feature_lists(feature_lists: example_pb2.FeatureLists, description, typename_mapping):
+    all_keys = list(feature_lists.feature_list.keys())
     if description is None:
         description = dict.fromkeys(all_keys, None)
     elif isinstance(description, list):
@@ -114,16 +147,9 @@ def extract_features(features, description):
             raise KeyError(f"Key {key} doesn't exist (select from {all_keys})!")
         # NOTE: We assume that each key in the example has only one field
         # (either "bytes_list", "float_list", or "int64_list")!
-        field = features.feature[key].ListFields()[0]
-        inferred_typename, value = field[0].name, field[1].value
-        if typename is not None:
-            tf_typename = typename_mapping[typename]
-            if tf_typename != inferred_typename:
-                reversed_mapping = {v: k for k, v in typename_mapping.items()}
-                raise TypeError(f"Incompatible type '{typename}' for `{key}` "
-                                f"(should be '{reversed_mapping[inferred_typename]}').")
-
-        processed_features[key] = decode_bytes(inferred_typename, value)
+        feature = feature_lists.feature_list[key].feature
+        fn = functools.partial(process_feature, typename=typename, typename_mapping=typename_mapping)
+        processed_features[key] = np.array(list(map(fn, feature)))
 
     return processed_features
 
@@ -179,7 +205,31 @@ def tfrecord_example_loader(data_path: str,
         example = example_pb2.Example()
         example.ParseFromString(record)
 
-        yield extract_features(example.features, description)
+        yield extract_features(example.features.feature, description, typename_mapping)
+
+
+def tfrecord_sequence_loader(data_path: str,
+                    index_path: typing.Union[str, None],
+                    context_description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
+                    features_description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
+                    shard: typing.Optional[typing.Tuple[int, int]] = None,
+                    ) -> typing.Iterable[typing.Dict[str, np.ndarray]]:
+    typename_mapping = {
+        "byte": "bytes_list",
+        "float": "float_list",
+        "int": "int64_list"
+    }
+
+    record_iterator = tfrecord_iterator(data_path, index_path, shard)
+
+    for record in record_iterator:
+        example = example_pb2.SequenceExample()
+        example.ParseFromString(record)
+
+        context = extract_features(example.context.feature, context_description, typename_mapping)
+        features = extract_feature_lists(example.feature_lists, features_description, typename_mapping)
+
+        yield context, features
 
 
 def tfrecord_loader(data_path: str,
