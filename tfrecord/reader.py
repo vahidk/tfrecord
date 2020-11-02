@@ -89,7 +89,46 @@ def tfrecord_iterator(data_path: str,
     file.close()
 
 
-def tfrecord_loader(data_path: str,
+def decode_bytes(inferred_typename: str, value):
+    # Decode raw bytes into respective data types
+    if inferred_typename == "bytes_list":
+        value = np.frombuffer(value[0], dtype=np.uint8)
+    elif inferred_typename == "float_list":
+        value = np.array(value, dtype=np.float32)
+    elif inferred_typename == "int64_list":
+        value = np.array(value, dtype=np.int32)
+    return value
+
+
+
+def extract_features(features, description):
+    all_keys = list(features.feature.keys())
+    if description is None:
+        description = dict.fromkeys(all_keys, None)
+    elif isinstance(description, list):
+        description = dict.fromkeys(description, None)
+
+    processed_features = {}
+    for key, typename in description.items():
+        if key not in all_keys:
+            raise KeyError(f"Key {key} doesn't exist (select from {all_keys})!")
+        # NOTE: We assume that each key in the example has only one field
+        # (either "bytes_list", "float_list", or "int64_list")!
+        field = features.feature[key].ListFields()[0]
+        inferred_typename, value = field[0].name, field[1].value
+        if typename is not None:
+            tf_typename = typename_mapping[typename]
+            if tf_typename != inferred_typename:
+                reversed_mapping = {v: k for k, v in typename_mapping.items()}
+                raise TypeError(f"Incompatible type '{typename}' for `{key}` "
+                                f"(should be '{reversed_mapping[inferred_typename]}').")
+
+        processed_features[key] = decode_bytes(inferred_typename, value)
+
+    return processed_features
+
+
+def tfrecord_example_loader(data_path: str,
                     index_path: typing.Union[str, None],
                     description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
                     shard: typing.Optional[typing.Tuple[int, int]] = None,
@@ -140,37 +179,48 @@ def tfrecord_loader(data_path: str,
         example = example_pb2.Example()
         example.ParseFromString(record)
 
-        all_keys = list(example.features.feature.keys())
-        if description is None:
-            description = dict.fromkeys(all_keys, None)
-        elif isinstance(description, list):
-            description = dict.fromkeys(description, None)
+        yield extract_features(example.features, description)
 
-        features = {}
-        for key, typename in description.items():
-            if key not in all_keys:
-                raise KeyError(f"Key {key} doesn't exist (select from {all_keys})!")
-            # NOTE: We assume that each key in the example has only one field
-            # (either "bytes_list", "float_list", or "int64_list")!
-            field = example.features.feature[key].ListFields()[0]
-            inferred_typename, value = field[0].name, field[1].value
-            if typename is not None:
-                tf_typename = typename_mapping[typename]
-                if tf_typename != inferred_typename:
-                    reversed_mapping = {v: k for k, v in typename_mapping.items()}
-                    raise TypeError(f"Incompatible type '{typename}' for `{key}` "
-                                    f"(should be '{reversed_mapping[inferred_typename]}').")
 
-            # Decode raw bytes into respective data types
-            if inferred_typename == "bytes_list":
-                value = np.frombuffer(value[0], dtype=np.uint8)
-            elif inferred_typename == "float_list":
-                value = np.array(value, dtype=np.float32)
-            elif inferred_typename == "int64_list":
-                value = np.array(value, dtype=np.int32)
-            features[key] = value
+def tfrecord_loader(data_path: str,
+                    index_path: typing.Union[str, None],
+                    description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
+                    shard: typing.Optional[typing.Tuple[int, int]] = None,
+                    ) -> typing.Iterable[typing.Dict[str, np.ndarray]]:
+    """Create an iterator over the (decoded) examples contained within
+    the dataset.
 
-        yield features
+    Decodes raw bytes of the features (contained within the dataset)
+    into its respective format.
+
+    Params:
+    -------
+    data_path: str
+        TFRecord file path.
+
+    index_path: str or None
+        Index file path. Can be set to None if no file is available.
+
+    description: list or dict of str, optional, default=None
+        List of keys or dict of (key, value) pairs to extract from each
+        record. The keys represent the name of the features and the
+        values ("byte", "float", or "int") correspond to the data type.
+        If dtypes are provided, then they are verified against the
+        inferred type for compatibility purposes. If None (default),
+        then all features contained in the file are extracted.
+
+    shard: tuple of ints, optional, default=None
+        A tuple (index, count) representing worker_id and num_workers
+        count. Necessary to evenly split/shard the dataset among many
+        workers (i.e. >1).
+
+    Yields:
+    -------
+    features: dict of {str, np.ndarray}
+        Decoded bytes of the features into its respective data type (for
+        an individual record).
+    """
+    return tfrecord_example_loader(data_path, index_path, description, shard)
 
 
 def multi_tfrecord_loader(data_pattern: str,
