@@ -89,17 +89,6 @@ def tfrecord_iterator(data_path: str,
     file.close()
 
 
-def decode_bytes(inferred_typename: str, value):
-    # Decode raw bytes into respective data types
-    if inferred_typename == "bytes_list":
-        value = np.frombuffer(value[0], dtype=np.uint8)
-    elif inferred_typename == "float_list":
-        value = np.array(value, dtype=np.float32)
-    elif inferred_typename == "int64_list":
-        value = np.array(value, dtype=np.int32)
-    return value
-
-
 def process_feature(feature: example_pb2.Feature,
                     typename: str,
                     typename_mapping: dict):
@@ -115,7 +104,13 @@ def process_feature(feature: example_pb2.Feature,
             raise TypeError(f"Incompatible type '{typename}' for `{key}` "
                         f"(should be '{reversed_mapping[inferred_typename]}').")
 
-    return decode_bytes(inferred_typename, value)
+    if inferred_typename == "bytes_list":
+        value = np.frombuffer(value[0], dtype=np.uint8)
+    elif inferred_typename == "float_list":
+        value = np.array(value, dtype=np.float32)
+    elif inferred_typename == "int64_list":
+        value = np.array(value, dtype=np.int32)
+    return value
 
 
 def extract_features(features, description, typename_mapping):
