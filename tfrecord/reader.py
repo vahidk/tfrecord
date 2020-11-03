@@ -91,7 +91,8 @@ def tfrecord_iterator(data_path: str,
 
 def process_feature(feature: example_pb2.Feature,
                     typename: str,
-                    typename_mapping: dict):
+                    typename_mapping: dict,
+                    key: str):
     # NOTE: We assume that each key in the example has only one field
     # (either "bytes_list", "float_list", or "int64_list")!
     field = feature.ListFields()[0]
@@ -124,7 +125,7 @@ def extract_features(features, description, typename_mapping):
     for key, typename in description.items():
         if key not in all_keys:
             raise KeyError(f"Key {key} doesn't exist (select from {all_keys})!")
-        processed_features[key] = process_feature(features[key], typename, typename_mapping)
+        processed_features[key] = process_feature(features[key], typename, typename_mapping, key)
 
     return processed_features
 
@@ -143,7 +144,7 @@ def extract_feature_lists(feature_lists: example_pb2.FeatureLists, description, 
         # NOTE: We assume that each key in the example has only one field
         # (either "bytes_list", "float_list", or "int64_list")!
         feature = feature_lists.feature_list[key].feature
-        fn = functools.partial(process_feature, typename=typename, typename_mapping=typename_mapping)
+        fn = functools.partial(process_feature, typename=typename, typename_mapping=typename_mapping, key=key)
         processed_features[key] = np.array(list(map(fn, feature)))
 
     return processed_features
