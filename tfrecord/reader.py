@@ -114,8 +114,28 @@ def process_feature(feature: example_pb2.Feature,
     return value
 
 
-def extract_features(features, description, typename_mapping):
+def extract_feature_dict(features, description, typename_mapping):
+    if isinstance(features, example_pb2.FeatureLists):
+        features = features.feature_list
+
+        def get_value(typename, typename_mapping, key):
+            feature = features[key].feature
+            fn = functools.partial(process_feature, typename=typename,
+                                   typename_mapping=typename_mapping, key=key)
+            return np.array(list(map(fn, feature)))
+    elif isinstance(features, example_pb2.Features):
+        features = features.feature
+
+        def get_value(typename, typename_mapping, key):
+            return process_feature(features[key], typename,
+                                   typename_mapping, key)
+    else:
+        raise TypeError(f"Incompatible type: features should be either of type "
+                        f"example_pb2.Features or example_pb2.FeatureLists and "
+                        f"not {type(features)}")
+
     all_keys = list(features.keys())
+
     if description is None:
         description = dict.fromkeys(all_keys, None)
     elif isinstance(description, list):
@@ -125,27 +145,8 @@ def extract_features(features, description, typename_mapping):
     for key, typename in description.items():
         if key not in all_keys:
             raise KeyError(f"Key {key} doesn't exist (select from {all_keys})!")
-        processed_features[key] = process_feature(features[key], typename, typename_mapping, key)
 
-    return processed_features
-
-
-def extract_feature_lists(feature_lists: example_pb2.FeatureLists, description, typename_mapping):
-    all_keys = list(feature_lists.feature_list.keys())
-    if description is None:
-        description = dict.fromkeys(all_keys, None)
-    elif isinstance(description, list):
-        description = dict.fromkeys(description, None)
-
-    processed_features = {}
-    for key, typename in description.items():
-        if key not in all_keys:
-            raise KeyError(f"Key {key} doesn't exist (select from {all_keys})!")
-        # NOTE: We assume that each key in the example has only one field
-        # (either "bytes_list", "float_list", or "int64_list")!
-        feature = feature_lists.feature_list[key].feature
-        fn = functools.partial(process_feature, typename=typename, typename_mapping=typename_mapping, key=key)
-        processed_features[key] = np.array(list(map(fn, feature)))
+        processed_features[key] = get_value(typename, typename_mapping, key)
 
     return processed_features
 
@@ -201,7 +202,7 @@ def example_loader(data_path: str,
         example = example_pb2.Example()
         example.ParseFromString(record)
 
-        yield extract_features(example.features.feature, description, typename_mapping)
+        yield extract_feature_dict(example.features, description, typename_mapping)
 
 
 def sequence_loader(data_path: str,
@@ -222,8 +223,8 @@ def sequence_loader(data_path: str,
         example = example_pb2.SequenceExample()
         example.ParseFromString(record)
 
-        context = extract_features(example.context.feature, context_description, typename_mapping)
-        features = extract_feature_lists(example.feature_lists, features_description, typename_mapping)
+        context = extract_feature_dict(example.context, context_description, typename_mapping)
+        features = extract_feature_dict(example.feature_lists, features_description, typename_mapping)
 
         yield context, features
 
