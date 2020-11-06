@@ -88,3 +88,33 @@ class TFRecordWriter:
         features = {key: serialize(value, dtype) for key, (value, dtype) in datum.items()}
         example_proto = example_pb2.Example(features=example_pb2.Features(feature=features))
         return example_proto.SerializeToString()
+
+    @staticmethod
+    def serialize_tf_sequence_example(c_datum, f_datum):
+        feature_map = {
+            "byte": lambda f: example_pb2.Feature(
+                bytes_list=example_pb2.BytesList(value=f)),
+            "float": lambda f: example_pb2.Feature(
+                float_list=example_pb2.FloatList(value=f)),
+            "int": lambda f: example_pb2.Feature(
+                int64_list=example_pb2.Int64List(value=f))
+        }
+
+        def serialize(value, dtype):
+            if not isinstance(value, (list, tuple, np.ndarray)):
+                value = [value]
+            return feature_map[dtype](value)
+
+        def serialize_repeated(value, dtype):
+            feature_list = example_pb2.FeatureList()
+            for v in value:
+                feature_list.feature.append(serialize(v, dtype))
+            return feature_list
+
+        context = {key: serialize(value, dtype) for key, (value, dtype) in c_datum.items()}
+        features = {key: serialize_repeated(value, dtype) for key, (value, dtype) in f_datum.items()}
+
+        context = example_pb2.Features(feature=context)
+        features = example_pb2.FeatureLists(feature_list=features)
+        proto = example_pb2.SequenceExample(context=context, feature_lists=features)
+        return proto.SerializeToString()
