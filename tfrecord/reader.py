@@ -122,7 +122,7 @@ def extract_feature_dict(features, description, typename_mapping):
             feature = features[key].feature
             fn = functools.partial(process_feature, typename=typename,
                                    typename_mapping=typename_mapping, key=key)
-            return np.array(list(map(fn, feature)))
+            return list(map(fn, feature))
     elif isinstance(features, example_pb2.Features):
         features = features.feature
 
@@ -210,7 +210,51 @@ def sequence_loader(data_path: str,
                     context_description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
                     features_description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
                     shard: typing.Optional[typing.Tuple[int, int]] = None,
-                    ) -> typing.Iterable[typing.Dict[str, np.ndarray]]:
+                    ) -> typing.Iterable[typing.Tuple[typing.Dict[str, np.ndarray],
+                                                      typing.Dict[str, typing.List[np.ndarray]]]]:
+    """Create an iterator over the (decoded) sequence examples contained within
+    the dataset.
+
+    Decodes raw bytes of both the context and features (contained within the
+    dataset) into its respective format.
+
+    Params:
+    -------
+    data_path: str
+        TFRecord file path.
+
+    index_path: str or None
+        Index file path. Can be set to None if no file is available.
+
+    context_description: list or dict of str, optional, default=None
+        List of keys or dict (key, value) pairs to extract from the
+        the context of each record. The keys represent the name of the
+        features and the values ("byte", "float" or "int") correspond
+        to the data type. If dtypes are provided, then they are verified
+        against the inferred type for compatibility purposes. If None
+        (default), then all features contained in the file are extracted.
+
+    features_description: list or dict of str, optional, default=None
+        Same as `context_description`, but applies to the features of
+        each record.
+
+    shard: tuple of ints, optional, default=None
+        A tuple (index, count) representing worker_id and num_workers
+        count. Necessary to evenly split/shard the dataset among many
+        workers (i.e. >1).
+
+    Yields:
+    -------
+    A tuple of (context, features) for an individual record.
+
+    context: dict of {str, np.ndarray}
+        Decoded bytes of the context features into its respective data
+        type.
+
+    features: dict of {str, np.ndarray}
+        Decoded bytes of the sequence features into its respective data
+        type.
+    """
     typename_mapping = {
         "byte": "bytes_list",
         "float": "float_list",
