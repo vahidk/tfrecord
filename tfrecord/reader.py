@@ -136,7 +136,7 @@ def extract_feature_dict(features, description, typename_mapping):
 
     all_keys = list(features.keys())
 
-    if description is None:
+    if description is None or len(description) == 0:
         description = dict.fromkeys(all_keys, None)
     elif isinstance(description, list):
         description = dict.fromkeys(description, None)
@@ -277,7 +277,10 @@ def tfrecord_loader(data_path: str,
                     index_path: typing.Union[str, None],
                     description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
                     shard: typing.Optional[typing.Tuple[int, int]] = None,
-                    ) -> typing.Iterable[typing.Dict[str, np.ndarray]]:
+                    sequence_description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
+                    ) -> typing.Iterable[typing.Union[typing.Dict[str, np.ndarray],
+                                                      typing.Tuple[typing.Dict[str, np.ndarray],
+                                                                   typing.Dict[str, typing.List[np.ndarray]]]]]:
     """Create an iterator over the (decoded) examples contained within
     the dataset.
 
@@ -298,19 +301,31 @@ def tfrecord_loader(data_path: str,
         values ("byte", "float", or "int") correspond to the data type.
         If dtypes are provided, then they are verified against the
         inferred type for compatibility purposes. If None (default),
-        then all features contained in the file are extracted.
+        or an empty list or dictionary, then all features contained in
+        the file are extracted.
 
     shard: tuple of ints, optional, default=None
         A tuple (index, count) representing worker_id and num_workers
         count. Necessary to evenly split/shard the dataset among many
         workers (i.e. >1).
 
+    sequence_description: list or dict of str, optional, default=None
+        Similar to `description`, but refers to the sequence features
+        within a `SequenceExample`. When this field is `None`, then it
+        is assumed that an `Example` is being read otherwise, a
+        `SequenceExample` is read. If an empty list or dictionary is
+        passed, then all features contained in the file are extracted.
+
     Yields:
     -------
-    features: dict of {str, np.ndarray}
+    features: dict of {str, value}
         Decoded bytes of the features into its respective data type (for
-        an individual record).
+        an individual record). `value` is either going to be an np.ndarray
+        in the instance of an `Example` and a list of np.ndarray in the
+        instance of a `SequenceExample`.
     """
+    if sequence_description is not None:
+        return sequence_loader(data_path, index_path, description, sequence_description, shard)
     return example_loader(data_path, index_path, description, shard)
 
 
@@ -318,7 +333,10 @@ def multi_tfrecord_loader(data_pattern: str,
                           index_pattern: typing.Union[str, None],
                           splits: typing.Dict[str, float],
                           description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
-                          ) -> typing.Iterable[typing.Dict[str, np.ndarray]]:
+                          sequence_description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
+                          ) -> typing.Iterable[typing.Union[typing.Dict[str, np.ndarray],
+                                                            typing.Tuple[typing.Dict[str, np.ndarray],
+                                                                         typing.Dict[str, typing.List[np.ndarray]]]]]:
     """Create an iterator by reading and merging multiple tfrecord datasets.
 
     NOTE: Sharding is currently unavailable for the multi tfrecord loader.
@@ -344,6 +362,13 @@ def multi_tfrecord_loader(data_pattern: str,
         inferred type for compatibility purposes. If None (default),
         then all features contained in the file are extracted.
 
+    sequence_description: list or dict of str, optional, default=None
+        Similar to `description`, but refers to the sequence features
+        within a `SequenceExample`. When this field is `None`, then it
+        is assumed that an `Example` is being read otherwise, a
+        `SequenceExample` is read. If an empty list or dictionary is
+        passed, then all features contained in the file are extracted.
+
     Returns:
     --------
     it: iterator
@@ -352,6 +377,8 @@ def multi_tfrecord_loader(data_pattern: str,
     loaders = [functools.partial(tfrecord_loader, data_path=data_pattern.format(split),
                                  index_path=index_pattern.format(split) \
                                      if index_pattern is not None else None,
-                                 description=description)
+                                 description=description,
+                                 sequence_description=sequence_description,
+                                 )
                for split in splits.keys()]
     return iterator_utils.sample_iterators(loaders, list(splits.values()))
