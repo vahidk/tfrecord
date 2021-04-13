@@ -1,4 +1,6 @@
-# TFRecord reader
+# TFRecord reader and writer
+
+This library allows reading and writing tfrecord files efficiently in python. The library also provides an IterableDataset reader of tfrecord files for PyTorch.
 
 ## Installation
 pip3 install tfrecord
