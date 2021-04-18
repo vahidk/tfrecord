@@ -3,7 +3,8 @@
 This library allows reading and writing tfrecord files efficiently in python. The library also provides an IterableDataset reader of tfrecord files for PyTorch.
 
 ## Installation
-pip3 install tfrecord
+
+```pip3 install tfrecord```
 
 ## Usage
 
@@ -12,13 +13,15 @@ It's recommended to create an index file for each TFRecord file. Index file must
 python3 -m tfrecord.tools.tfrecord2idx <tfrecord path> <index path>
 ```
 
+## Reading & Writing tf.train.Example
 
+### Reading tf.Example records in PyTorch
 Use TFRecordDataset to read TFRecord files in PyTorch.
 ```python
 import torch
 from tfrecord.torch.dataset import TFRecordDataset
 
-tfrecord_path = "/path/to/data.tfrecord"
+tfrecord_path = "/tmp/data.tfrecord"
 index_path = None
 description = {"image": "byte", "label": "float"}
 dataset = TFRecordDataset(tfrecord_path, index_path, description)
@@ -33,8 +36,8 @@ Use MultiTFRecordDataset to read multiple TFRecord files. This class samples fro
 import torch
 from tfrecord.torch.dataset import MultiTFRecordDataset
 
-tfrecord_pattern = "/path/to/{}.tfrecord"
-index_pattern = "/path/to/{}.index"
+tfrecord_pattern = "/tmp/{}.tfrecord"
+index_pattern = "/tmp/{}.index"
 splits = {
     "dataset1": 0.8,
     "dataset2": 0.2,
@@ -47,37 +50,14 @@ data = next(iter(loader))
 print(data)
 ```
 
-Creating tfrecord files:
-```python
-import tfrecord
+### Shuffling the data
 
-writer = tfrecord.TFRecordWriter("/path/to/data.tfrecord")
-writer.write({
-    "image": (image_bytes, "byte"),
-    "label": (label, "float"),
-    "index": (index, "int")
-})
-writer.close()
+Both TFRecordDataset and MultiTFRecordDataset automatically shuffle the data when you provide a queue size.
 ```
-Note: To write tfrecord files you also need an additional dependency:
-```
-pip3 install crc32c
+dataset = TFRecordDataset(..., shuffle_queue_size=1024)
 ```
 
-Reading tfrecord files in python:
-```python
-import tfrecord
-
-loader = tfrecord.tfrecord_loader("/path/to/data.tfrecord", None, {
-    "image": "byte",
-    "label": "float",
-    "index": "int"
-})
-for record in loader:
-    print(record["label"])
-```
-
-### Transforming input
+### Transforming input data
 
 You can optionally pass a function as `transform` argument to perform post processing of features before returning. 
 This can for example be used to decode images or normalize colors to a certain range or pad variable length sequence.
@@ -96,7 +76,7 @@ description = {
     "image": "bytes",
 }
 
-dataset = tfrecord.torch.TFRecordDataset("/path/to/data.tfrecord",
+dataset = tfrecord.torch.TFRecordDataset("/tmp/data.tfrecord",
                                          index_path=None,
                                          description=description,
                                          transform=decode_image)
@@ -105,26 +85,52 @@ data = next(iter(dataset))
 print(data)
 ```
 
-### Reading tf.train.SequenceExample
+### Writing tf.Example records in Python
+```python
+import tfrecord
+
+writer = tfrecord.TFRecordWriter("/tmp/data.tfrecord")
+writer.write({
+    "image": (image_bytes, "byte"),
+    "label": (label, "float"),
+    "index": (index, "int")
+})
+writer.close()
+```
+
+### Reading tf.Example records in Python
+```python
+import tfrecord
+
+loader = tfrecord.tfrecord_loader("/tmp/data.tfrecord", None, {
+    "image": "byte",
+    "label": "float",
+    "index": "int"
+})
+for record in loader:
+    print(record["label"])
+```
+
+## Reading & Writing tf.train.SequenceExample
 
 SequenceExamples can be read and written using the same methods shown above with an extra argument
 (`sequence_description` for reading and `sequence_datum` for writing) which cause the respective
 read/write functions to treat the data as a SequenceExample.
 
-#### Writing SequenceExamples to file
+### Writing SequenceExamples to file
 
 ```python
 import tfrecord
 
-writer = tfrecord.TFRecordWriter("/path/to/data.tfrecord")
+writer = tfrecord.TFRecordWriter("/tmp/data.tfrecord")
 writer.write({'length': (3, 'int'), 'label': (1, 'int')},
-             {'tokens': [[0, 0, 1], [0, 1, 0], [1, 0, 0]], 'seq_labels': [0, 1, 1]})
+             {'tokens': ([[0, 0, 1], [0, 1, 0], [1, 0, 0]], 'int'), 'seq_labels': ([0, 1, 1], 'int')})
 writer.write({'length': (3, 'int'), 'label': (1, 'int')},
-             {'tokens': [[0, 0, 1], [1, 0, 0]], 'seq_labels': [0, 1]})
+             {'tokens': ([[0, 0, 1], [1, 0, 0]], 'int'), 'seq_labels': ([0, 1], 'int')})
 writer.close()
 ```
 
-#### Reading SequenceExamples in python
+### Reading SequenceExamples in python
 
 Reading from a SequenceExample yeilds a tuple containing two elements.
 
@@ -132,8 +138,8 @@ Reading from a SequenceExample yeilds a tuple containing two elements.
 import tfrecord
 
 context_description = {"length": "int", "label": "int"}
-sequence_description = {"tokens": "int ", "seq_labels": "int"}
-loader = tfrecord.tfrecord_loader("/path/to/data.tfrecord", None,
+sequence_description = {"tokens": "int", "seq_labels": "int"}
+loader = tfrecord.tfrecord_loader("/tmp/data.tfrecord", None,
                                   context_description,
                                   sequence_description=sequence_description)
 
@@ -142,7 +148,7 @@ for context, sequence_feats in loader:
     print(sequence_feats["seq_labels"])
 ```
 
-#### Read SequenceExamples using TFRecordDataset
+### Read SequenceExamples in PyTorch
 
 As described in the section on `Transforming Input`, one can pass a function as the `transform` argument to
 perform post processing of features. This should be used especially for the sequence features as these are
@@ -162,7 +168,7 @@ def pad_sequence_feats(data):
 
 context_description = {"length": "int", "label": "int"}
 sequence_description = {"tokens": "int ", "seq_labels": "int"}
-dataset = TFRecordDataset("/path/to/data.tfrecord",
+dataset = TFRecordDataset("/tmp/data.tfrecord",
                           index_path=None,
 			  description=context_description,
 			  transform=pad_sequence_feats,
@@ -190,7 +196,7 @@ def collate_fn(batch):
 
 context_description = {"length": "int", "label": "int"}
 sequence_description = {"tokens": "int ", "seq_labels": "int"}
-dataset = TFRecordDataset("/path/to/data.tfrecord",
+dataset = TFRecordDataset("/tmp/data.tfrecord",
                           index_path=None,
 			  description=context_description,
 			  transform=pad_sequence_feats,
