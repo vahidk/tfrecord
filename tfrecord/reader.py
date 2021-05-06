@@ -110,7 +110,7 @@ def process_feature(feature: example_pb2.Feature,
     elif inferred_typename == "float_list":
         value = np.array(value, dtype=np.float32)
     elif inferred_typename == "int64_list":
-        value = np.array(value, dtype=np.int32)
+        value = np.array(value, dtype=np.int64)
     return value
 
 
