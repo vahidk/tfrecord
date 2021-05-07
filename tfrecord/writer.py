@@ -67,7 +67,7 @@ class TFRecordWriter:
         mask = 0xa282ead8
         crc = crc32c.crc32(data)
         masked = ((crc >> 15) | (crc << 17)) + mask
-        masked = np.uint32(masked)
+        masked = np.uint32(masked & np.iinfo(np.uint32).max)
         masked_bytes = struct.pack("<I", masked)
         return masked_bytes
 
