@@ -364,7 +364,7 @@ def tfrecord_loader(
         instance of a `SequenceExample`.
     """
     if sequence_description is not None:
-        return sequence_loader(data_path, index_path, description, sequence_description, shard)
+        return sequence_loader(data_path, index_path, description, sequence_description, shard, compression_type)
     return example_loader(data_path, index_path, description, shard, compression_type)
 
 
