@@ -364,8 +364,21 @@ def tfrecord_loader(
         instance of a `SequenceExample`.
     """
     if sequence_description is not None:
-        return sequence_loader(data_path, index_path, description, sequence_description, shard, compression_type)
-    return example_loader(data_path, index_path, description, shard, compression_type)
+        return sequence_loader(
+            data_path=data_path,
+            index_path=index_path,
+            context_description=description,
+            features_description=sequence_description,
+            shard=shard,
+            compression_type=compression_type
+        )
+    return example_loader(
+        data_path=data_path,
+        index_path=index_path,
+        description=description,
+        shard=shard,
+        compression_type=compression_type
+    )
 
 
 def multi_tfrecord_loader(data_pattern: str,
