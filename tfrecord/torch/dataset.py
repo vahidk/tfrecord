@@ -47,6 +47,10 @@ class TFRecordDataset(torch.utils.data.IterableDataset):
         `SequenceExample` is read. If an empty list or dictionary is
         passed, then all features contained in the file are extracted.
 
+    compression_type: str, optional, default=None
+        The type of compression used for the tfrecord. Choose either
+        'gzip' or None.
+
     """
 
     def __init__(self,
@@ -56,6 +60,7 @@ class TFRecordDataset(torch.utils.data.IterableDataset):
                  shuffle_queue_size: typing.Optional[int] = None,
                  transform: typing.Callable[[dict], typing.Any] = None,
                  sequence_description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
+                 compression_type: typing.Optional[str] = None,
                  ) -> None:
         super(TFRecordDataset, self).__init__()
         self.data_path = data_path
@@ -64,6 +69,7 @@ class TFRecordDataset(torch.utils.data.IterableDataset):
         self.sequence_description = sequence_description
         self.shuffle_queue_size = shuffle_queue_size
         self.transform = transform or (lambda x: x)
+        self.compression_type = compression_type
 
     def __iter__(self):
         worker_info = torch.utils.data.get_worker_info()
@@ -76,7 +82,8 @@ class TFRecordDataset(torch.utils.data.IterableDataset):
                                     index_path=self.index_path,
                                     description=self.description,
                                     shard=shard,
-                                    sequence_description=self.sequence_description)
+                                    sequence_description=self.sequence_description,
+                                    compression_type=self.compression_type)
         if self.shuffle_queue_size:
             it = iterator_utils.shuffle_iterator(it, self.shuffle_queue_size)
         if self.transform:
@@ -125,6 +132,9 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
         `SequenceExample` is read. If an empty list or dictionary is
         passed, then all features contained in the file are extracted.
 
+    compression_type: str, optional, default=None
+        The type of compression used for the tfrecord. Choose either
+        'gzip' or None.
     """
 
     def __init__(self,
@@ -135,6 +145,7 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
                  shuffle_queue_size: typing.Optional[int] = None,
                  transform: typing.Callable[[dict], typing.Any] = None,
                  sequence_description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
+                 compression_type: typing.Optional[str] = None,
                  ) -> None:
         super(MultiTFRecordDataset, self).__init__()
         self.data_pattern = data_pattern
@@ -144,6 +155,7 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
         self.sequence_description = sequence_description
         self.shuffle_queue_size = shuffle_queue_size
         self.transform = transform
+        self.compression_type = compression_type
 
     def __iter__(self):
         worker_info = torch.utils.data.get_worker_info()
@@ -153,7 +165,9 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
                                           index_pattern=self.index_pattern,
                                           splits=self.splits,
                                           description=self.description,
-                                          sequence_description=self.sequence_description)
+                                          sequence_description=self.sequence_description,
+                                          compression_type=self.compression_type,
+                                         )
         if self.shuffle_queue_size:
             it = iterator_utils.shuffle_iterator(it, self.shuffle_queue_size)
         if self.transform:

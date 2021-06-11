@@ -1,6 +1,7 @@
 """Reader utils."""
 
 import functools
+import gzip
 import io
 import os
 import struct
@@ -12,10 +13,12 @@ from tfrecord import example_pb2
 from tfrecord import iterator_utils
 
 
-def tfrecord_iterator(data_path: str,
-                      index_path: typing.Optional[str] = None,
-                      shard: typing.Optional[typing.Tuple[int, int]] = None
-                      ) -> typing.Iterable[memoryview]:
+def tfrecord_iterator(
+    data_path: str,
+    index_path: typing.Optional[str] = None,
+    shard: typing.Optional[typing.Tuple[int, int]] = None,
+    compression_type: typing.Optional[str] = None,
+) -> typing.Iterable[memoryview]:
     """Create an iterator over the tfrecord dataset.
 
     Since the tfrecords file stores each example as bytes, we can
@@ -41,8 +44,12 @@ def tfrecord_iterator(data_path: str,
         Object referencing the specified `datum_bytes` contained in the
         file (for a single record).
     """
-    file = io.open(data_path, "rb")
-
+    if compression_type == "gzip":
+        file = gzip.open(data_path, "rb")
+    elif compression_type is None:
+        file = io.open(data_path, "rb")
+    else:
+        raise ValueError("compression_type should be either 'gzip' or None")
     length_bytes = bytearray(8)
     crc_bytes = bytearray(4)
     datum_bytes = bytearray(1024 * 1024)
@@ -151,11 +158,13 @@ def extract_feature_dict(features, description, typename_mapping):
     return processed_features
 
 
-def example_loader(data_path: str,
-                   index_path: typing.Union[str, None],
-                   description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
-                   shard: typing.Optional[typing.Tuple[int, int]] = None,
-                   ) -> typing.Iterable[typing.Dict[str, np.ndarray]]:
+def example_loader(
+    data_path: str,
+    index_path: typing.Union[str, None],
+    description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
+    shard: typing.Optional[typing.Tuple[int, int]] = None,
+    compression_type: typing.Optional[str] = None,
+) -> typing.Iterable[typing.Dict[str, np.ndarray]]:
     """Create an iterator over the (decoded) examples contained within
     the dataset.
 
@@ -183,6 +192,10 @@ def example_loader(data_path: str,
         count. Necessary to evenly split/shard the dataset among many
         workers (i.e. >1).
 
+    compression_type: str, optional, default=None
+        The type of compression used for the tfrecord. Choose either
+        'gzip' or None.
+
     Yields:
     -------
     features: dict of {str, np.ndarray}
@@ -196,7 +209,12 @@ def example_loader(data_path: str,
         "int": "int64_list"
     }
 
-    record_iterator = tfrecord_iterator(data_path, index_path, shard)
+    record_iterator = tfrecord_iterator(
+        data_path=data_path,
+        index_path=index_path,
+        shard=shard,
+        compression_type=compression_type,
+    )
 
     for record in record_iterator:
         example = example_pb2.Example()
@@ -205,13 +223,22 @@ def example_loader(data_path: str,
         yield extract_feature_dict(example.features, description, typename_mapping)
 
 
-def sequence_loader(data_path: str,
-                    index_path: typing.Union[str, None],
-                    context_description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
-                    features_description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
-                    shard: typing.Optional[typing.Tuple[int, int]] = None,
-                    ) -> typing.Iterable[typing.Tuple[typing.Dict[str, np.ndarray],
-                                                      typing.Dict[str, typing.List[np.ndarray]]]]:
+def sequence_loader(
+    data_path: str,
+    index_path: typing.Union[str, None],
+    context_description: typing.Union[
+        typing.List[str], typing.Dict[str, str], None
+    ] = None,
+    features_description: typing.Union[
+        typing.List[str], typing.Dict[str, str], None
+    ] = None,
+    shard: typing.Optional[typing.Tuple[int, int]] = None,
+    compression_type: typing.Optional[str] = None,
+) -> typing.Iterable[
+    typing.Tuple[
+        typing.Dict[str, np.ndarray], typing.Dict[str, typing.List[np.ndarray]]
+    ]
+]:
     """Create an iterator over the (decoded) sequence examples contained within
     the dataset.
 
@@ -243,6 +270,10 @@ def sequence_loader(data_path: str,
         count. Necessary to evenly split/shard the dataset among many
         workers (i.e. >1).
 
+    compression_type: str, optional, default=None
+        The type of compression used for the tfrecord. Choose either
+        'gzip' or None.
+
     Yields:
     -------
     A tuple of (context, features) for an individual record.
@@ -261,7 +292,12 @@ def sequence_loader(data_path: str,
         "int": "int64_list"
     }
 
-    record_iterator = tfrecord_iterator(data_path, index_path, shard)
+    record_iterator = tfrecord_iterator(
+        data_path=data_path,
+        index_path=index_path,
+        shard=shard,
+        compression_type=compression_type,
+    )
 
     for record in record_iterator:
         example = example_pb2.SequenceExample()
@@ -273,14 +309,23 @@ def sequence_loader(data_path: str,
         yield context, features
 
 
-def tfrecord_loader(data_path: str,
-                    index_path: typing.Union[str, None],
-                    description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
-                    shard: typing.Optional[typing.Tuple[int, int]] = None,
-                    sequence_description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
-                    ) -> typing.Iterable[typing.Union[typing.Dict[str, np.ndarray],
-                                                      typing.Tuple[typing.Dict[str, np.ndarray],
-                                                                   typing.Dict[str, typing.List[np.ndarray]]]]]:
+def tfrecord_loader(
+    data_path: str,
+    index_path: typing.Union[str, None],
+    description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
+    shard: typing.Optional[typing.Tuple[int, int]] = None,
+    sequence_description: typing.Union[
+        typing.List[str], typing.Dict[str, str], None
+    ] = None,
+    compression_type: typing.Optional[str] = None,
+) -> typing.Iterable[
+    typing.Union[
+        typing.Dict[str, np.ndarray],
+        typing.Tuple[
+            typing.Dict[str, np.ndarray], typing.Dict[str, typing.List[np.ndarray]]
+        ],
+    ]
+]:
     """Create an iterator over the (decoded) examples contained within
     the dataset.
 
@@ -316,6 +361,10 @@ def tfrecord_loader(data_path: str,
         `SequenceExample` is read. If an empty list or dictionary is
         passed, then all features contained in the file are extracted.
 
+    compression_type: str, optional, default=None
+        The type of compression used for the tfrecord. Choose either
+        'gzip' or None.
+
     Yields:
     -------
     features: dict of {str, value}
@@ -325,8 +374,21 @@ def tfrecord_loader(data_path: str,
         instance of a `SequenceExample`.
     """
     if sequence_description is not None:
-        return sequence_loader(data_path, index_path, description, sequence_description, shard)
-    return example_loader(data_path, index_path, description, shard)
+        return sequence_loader(
+            data_path=data_path,
+            index_path=index_path,
+            context_description=description,
+            features_description=sequence_description,
+            shard=shard,
+            compression_type=compression_type
+        )
+    return example_loader(
+        data_path=data_path,
+        index_path=index_path,
+        description=description,
+        shard=shard,
+        compression_type=compression_type
+    )
 
 
 def multi_tfrecord_loader(data_pattern: str,
@@ -334,6 +396,7 @@ def multi_tfrecord_loader(data_pattern: str,
                           splits: typing.Dict[str, float],
                           description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
                           sequence_description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
+                          compression_type: typing.Optional[str] = None,
                           ) -> typing.Iterable[typing.Union[typing.Dict[str, np.ndarray],
                                                             typing.Tuple[typing.Dict[str, np.ndarray],
                                                                          typing.Dict[str, typing.List[np.ndarray]]]]]:
@@ -369,6 +432,10 @@ def multi_tfrecord_loader(data_pattern: str,
         `SequenceExample` is read. If an empty list or dictionary is
         passed, then all features contained in the file are extracted.
 
+    compression_type: str, optional, default=None
+        The type of compression used for the tfrecord. Choose either
+        'gzip' or None.
+
     Returns:
     --------
     it: iterator
@@ -379,6 +446,7 @@ def multi_tfrecord_loader(data_pattern: str,
                                      if index_pattern is not None else None,
                                  description=description,
                                  sequence_description=sequence_description,
+                                 compression_type=compression_type,
                                  )
                for split in splits.keys()]
     return iterator_utils.sample_iterators(loaders, list(splits.values()))
