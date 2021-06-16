@@ -1,6 +1,6 @@
 # TFRecord reader and writer
 
-This library allows reading and writing tfrecord files efficiently in python. The library also provides an IterableDataset reader of tfrecord files for PyTorch. Currently compressed TFRecords are not supported.
+This library allows reading and writing tfrecord files efficiently in python. The library also provides an IterableDataset reader of tfrecord files for PyTorch. Currently uncompressed and compressed gzip TFRecords are supported.
 
 ## Installation
 
