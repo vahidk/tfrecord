@@ -54,7 +54,7 @@ print(data)
 
 By default, `MultiTFRecordDataset` is infinite, meaning that it samples the data forever. You can make it finite by providing proper flag
 ```
-dataset = MultiTFRecordDataset(...,infinite=False)
+dataset = MultiTFRecordDataset(..., infinite=False)
 ```
 
 ### Shuffling the data
