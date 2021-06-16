@@ -46,16 +46,13 @@ def sample_iterators(iterators: typing.List[typing.Iterator],
     ratios = ratios / ratios.sum()
     while iterators:
         choice = np.random.choice(len(ratios), p=ratios)
-        if infinite:
+        try:
             yield next(iterators[choice])
-        else:
-            try:
-                yield next(iterators[choice])
-            except StopIteration:
-                if len(iterators) > 1:
-                    del iterators[choice]
-                    ratios = np.delete(ratios, choice)
-                    ratios = ratios / ratios.sum()
+        except StopIteration:
+            if len(iterators) > 1:
+                del iterators[choice]
+                ratios = np.delete(ratios, choice)
+                ratios = ratios / ratios.sum()
 
 
 
