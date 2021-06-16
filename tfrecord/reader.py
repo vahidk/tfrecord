@@ -397,6 +397,7 @@ def multi_tfrecord_loader(data_pattern: str,
                           description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
                           sequence_description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
                           compression_type: typing.Optional[str] = None,
+                          infinite: bool = True,
                           ) -> typing.Iterable[typing.Union[typing.Dict[str, np.ndarray],
                                                             typing.Tuple[typing.Dict[str, np.ndarray],
                                                                          typing.Dict[str, typing.List[np.ndarray]]]]]:
@@ -435,6 +436,9 @@ def multi_tfrecord_loader(data_pattern: str,
     compression_type: str, optional, default=None
         The type of compression used for the tfrecord. Choose either
         'gzip' or None.
+    
+    infinite: bool, optional, default=True
+        Whether the returned iterator should be infinite or not
 
     Returns:
     --------
@@ -449,4 +453,4 @@ def multi_tfrecord_loader(data_pattern: str,
                                  compression_type=compression_type,
                                  )
                for split in splits.keys()]
-    return iterator_utils.sample_iterators(loaders, list(splits.values()))
+    return iterator_utils.sample_iterators(loaders, list(splits.values()), infinite=infinite)

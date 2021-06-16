@@ -50,6 +50,13 @@ data = next(iter(loader))
 print(data)
 ```
 
+### Infinite and finite PyTorch dataset
+
+By default, `MultiTFRecordDataset` is infinite, meaning that it samples the data forever. You can make it finite by providing proper flag
+```
+dataset = MultiTFRecordDataset(...,infinite=False)
+```
+
 ### Shuffling the data
 
 Both TFRecordDataset and MultiTFRecordDataset automatically shuffle the data when you provide a queue size.

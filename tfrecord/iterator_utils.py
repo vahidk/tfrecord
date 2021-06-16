@@ -16,7 +16,8 @@ def cycle(iterator_fn: typing.Callable) -> typing.Iterable[typing.Any]:
 
 
 def sample_iterators(iterators: typing.List[typing.Iterator],
-                     ratios: typing.List[int]) -> typing.Iterable[typing.Any]:
+                     ratios: typing.List[int],
+                     infinite: bool = True) -> typing.Iterable[typing.Any]:
     """Retrieve info generated from the iterator(s) according to their
     sampling ratios.
 
@@ -27,6 +28,9 @@ def sample_iterators(iterators: typing.List[typing.Iterator],
 
     ratios: list of int
         The ratios with which to sample each iterator.
+    
+    infinite: bool, optional, default=True
+        Whether the returned iterator should be infinite or not
 
     Yields:
     -------
@@ -34,12 +38,25 @@ def sample_iterators(iterators: typing.List[typing.Iterator],
         Decoded bytes of features into its respective data types from
         an iterator (based off their sampling ratio).
     """
-    iterators = [cycle(iterator) for iterator in iterators]
+    if infinite:
+        iterators = [cycle(iterator) for iterator in iterators]
+    else:
+        iterators = [iterator() for iterator in iterators]
     ratios = np.array(ratios)
     ratios = ratios / ratios.sum()
-    while True:
+    while iterators:
         choice = np.random.choice(len(ratios), p=ratios)
-        yield next(iterators[choice])
+        if infinite:
+            yield next(iterators[choice])
+        else:
+            try:
+                yield next(iterators[choice])
+            except StopIteration:
+                if len(iterators) > 1:
+                    del iterators[choice]
+                    ratios = np.delete(ratios, choice)
+                    ratios = ratios / ratios.sum()
+
 
 
 def shuffle_iterator(iterator: typing.Iterator,
