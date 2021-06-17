@@ -49,7 +49,7 @@ def sample_iterators(iterators: typing.List[typing.Iterator],
         try:
             yield next(iterators[choice])
         except StopIteration:
-            if len(iterators) > 1:
+            if iterators:
                 del iterators[choice]
                 ratios = np.delete(ratios, choice)
                 ratios = ratios / ratios.sum()
