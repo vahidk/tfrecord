@@ -50,10 +50,19 @@ data = next(iter(loader))
 print(data)
 ```
 
+### Seeding workers
+
+By default, `MultiTFRecordDataset` and `TFRecordDataset` seed workers, that are spawned by PyTorch in `DataLoader`.
+This behavior can be turned off by providing the appropriate flag.
+
+```python
+dataset = TFRecordDataset(..., seed_workers=False)
+```
+
 ### Infinite and finite PyTorch dataset
 
 By default, `MultiTFRecordDataset` is infinite, meaning that it samples the data forever. You can make it finite by providing the appropriate flag
-```
+```python
 dataset = MultiTFRecordDataset(..., infinite=False)
 ```
 
