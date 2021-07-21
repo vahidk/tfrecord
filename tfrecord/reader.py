@@ -396,6 +396,7 @@ def multi_tfrecord_loader(data_pattern: str,
                           splits: typing.Dict[str, float],
                           description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
                           sequence_description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
+                          shard: typing.Optional[typing.Tuple[int, int]] = None,
                           compression_type: typing.Optional[str] = None,
                           infinite: bool = True,
                           ) -> typing.Iterable[typing.Union[typing.Dict[str, np.ndarray],
@@ -433,10 +434,15 @@ def multi_tfrecord_loader(data_pattern: str,
         `SequenceExample` is read. If an empty list or dictionary is
         passed, then all features contained in the file are extracted.
 
+    shard: tuple of ints, optional, default=None
+        A tuple (index, count) representing worker_id and num_workers
+        count. Necessary to evenly split/shard the dataset among many
+        workers (i.e. >1).
+
     compression_type: str, optional, default=None
         The type of compression used for the tfrecord. Choose either
         'gzip' or None.
-    
+
     infinite: bool, optional, default=True
         Whether the returned iterator should be infinite or not
 
@@ -449,6 +455,7 @@ def multi_tfrecord_loader(data_pattern: str,
                                  index_path=index_pattern.format(split) \
                                      if index_pattern is not None else None,
                                  description=description,
+                                 shard=shard,
                                  sequence_description=sequence_description,
                                  compression_type=compression_type,
                                  )

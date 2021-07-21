@@ -1,5 +1,6 @@
 """Load tfrecord files into torch datasets."""
 
+import math
 import typing
 import numpy as np
 
@@ -135,7 +136,7 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
     compression_type: str, optional, default=None
         The type of compression used for the tfrecord. Choose either
         'gzip' or None.
-    
+
     infinite: bool, optional, default=True
         Whether the Dataset should be infinite or not
     """
@@ -154,7 +155,7 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
         super(MultiTFRecordDataset, self).__init__()
         self.data_pattern = data_pattern
         self.index_pattern = index_pattern
-        self.splits = splits
+        self.splits = sorted(list(splits.items()))
         self.description = description
         self.sequence_description = sequence_description
         self.shuffle_queue_size = shuffle_queue_size
@@ -164,16 +165,38 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
 
     def __iter__(self):
         worker_info = torch.utils.data.get_worker_info()
+
         if worker_info is not None:
             np.random.seed(worker_info.seed % np.iinfo(np.uint32).max)
+
+            # Each worker will get only len(splits) // gcd(len(splits), num_workers) files
+            # and each such file will be sharded among num_workers // gcd(len(splits, num_workers)) workers
+            gcd = math.gcd(len(self.splits), worker_info.num_workers)
+            worker_num_splits = len(self.splits) // gcd
+            start = (worker_info.id % gcd) * worker_num_splits
+            end = start + worker_num_splits
+
+            worker_splits = dict(self.splits[start:end])
+
+            shard = worker_info.id // gcd, worker_info.num_workers // gcd
+
+            # if a worker has one file exclusively, let's discard shard
+            # in order to allow for random start of the file read
+            if shard == (0, 1):
+                shard = None
+
+        else:
+            worker_splits = dict(self.splits)
+            shard = None
+
         it = reader.multi_tfrecord_loader(data_pattern=self.data_pattern,
                                           index_pattern=self.index_pattern,
-                                          splits=self.splits,
+                                          splits=worker_splits,
                                           description=self.description,
                                           sequence_description=self.sequence_description,
+                                          shard=shard,
                                           compression_type=self.compression_type,
-                                          infinite=self.infinite,
-                                         )
+                                          infinite=self.infinite)
         if self.shuffle_queue_size:
             it = iterator_utils.shuffle_iterator(it, self.shuffle_queue_size)
         if self.transform:
