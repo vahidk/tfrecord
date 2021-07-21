@@ -51,6 +51,10 @@ class TFRecordDataset(torch.utils.data.IterableDataset):
         The type of compression used for the tfrecord. Choose either
         'gzip' or None.
 
+    seed_workers: bool, default=True
+        Seed workers automatically when using multiple workers. If False,
+        leave it up to the user.
+
     """
 
     def __init__(self,
@@ -61,6 +65,7 @@ class TFRecordDataset(torch.utils.data.IterableDataset):
                  transform: typing.Callable[[dict], typing.Any] = None,
                  sequence_description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
                  compression_type: typing.Optional[str] = None,
+                 seed_workers: bool = True
                  ) -> None:
         super(TFRecordDataset, self).__init__()
         self.data_path = data_path
@@ -70,12 +75,14 @@ class TFRecordDataset(torch.utils.data.IterableDataset):
         self.shuffle_queue_size = shuffle_queue_size
         self.transform = transform or (lambda x: x)
         self.compression_type = compression_type
+        self.seed_workers = seed_workers
 
     def __iter__(self):
         worker_info = torch.utils.data.get_worker_info()
         if worker_info is not None:
             shard = worker_info.id, worker_info.num_workers
-            np.random.seed(worker_info.seed % np.iinfo(np.uint32).max)
+            if self.seed_workers:
+                np.random.seed(worker_info.seed % np.iinfo(np.uint32).max)
         else:
             shard = None
         it = reader.tfrecord_loader(data_path=self.data_path,
@@ -135,7 +142,11 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
     compression_type: str, optional, default=None
         The type of compression used for the tfrecord. Choose either
         'gzip' or None.
-    
+
+    seed_workers: bool, default=True
+        Seed workers automatically when using multiple workers. If False,
+        leave it up to the user.
+
     infinite: bool, optional, default=True
         Whether the Dataset should be infinite or not
     """
@@ -149,6 +160,7 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
                  transform: typing.Callable[[dict], typing.Any] = None,
                  sequence_description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
                  compression_type: typing.Optional[str] = None,
+                 seed_workers: bool = True,
                  infinite: bool = True
                  ) -> None:
         super(MultiTFRecordDataset, self).__init__()
@@ -160,11 +172,12 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
         self.shuffle_queue_size = shuffle_queue_size
         self.transform = transform
         self.compression_type = compression_type
+        self.seed_workers = seed_workers
         self.infinite = infinite
 
     def __iter__(self):
         worker_info = torch.utils.data.get_worker_info()
-        if worker_info is not None:
+        if worker_info is not None and self.seed_workers:
             np.random.seed(worker_info.seed % np.iinfo(np.uint32).max)
         it = reader.multi_tfrecord_loader(data_pattern=self.data_pattern,
                                           index_pattern=self.index_pattern,
