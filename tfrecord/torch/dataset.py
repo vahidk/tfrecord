@@ -71,6 +71,17 @@ class TFRecordDataset(torch.utils.data.IterableDataset):
         self.transform = transform or (lambda x: x)
         self.compression_type = compression_type
 
+        if self.index_path:
+            index = np.loadtxt(index_path, dtype=np.int64)[:, 0]
+            self.num_records = len(index)
+        else:
+            self.num_records = None
+    
+    def __len__(self) -> int:
+        if self.num_records is not None:
+            return self.num_records
+        raise RuntimeError("Cannot compute length without index_path.")
+
     def __iter__(self):
         worker_info = torch.utils.data.get_worker_info()
         if worker_info is not None:
@@ -161,6 +172,20 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
         self.transform = transform
         self.compression_type = compression_type
         self.infinite = infinite
+
+        if self.index_pattern:
+            self.num_records = 0
+            for split in self.splits.keys():
+                index_path = self.index_pattern.format(split)
+                index = np.loadtxt(index_path, dtype=np.int64)[:, 0]
+                self.num_records += len(index)
+        else:
+            self.num_records = None
+    
+    def __len__(self) -> int:
+        if self.num_records is not None:
+            return self.num_records
+        raise RuntimeError("Cannot compute length without index_pattern.")
 
     def __iter__(self):
         worker_info = torch.utils.data.get_worker_info()
