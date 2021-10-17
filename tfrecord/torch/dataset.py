@@ -165,11 +165,15 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
     def __iter__(self):
         worker_info = torch.utils.data.get_worker_info()
         if worker_info is not None:
-            np.random.seed(worker_info.seed % np.iinfo(np.uint32).max)
+            np.random.seed(worker_info.seed % np.iinfo(np.uint32).max)            
+            shard = worker_info.id, worker_info.num_workers
+        else:
+            shard = None
         it = reader.multi_tfrecord_loader(data_pattern=self.data_pattern,
                                           index_pattern=self.index_pattern,
                                           splits=self.splits,
                                           description=self.description,
+                                          shard=shard,
                                           sequence_description=self.sequence_description,
                                           compression_type=self.compression_type,
                                           infinite=self.infinite,
