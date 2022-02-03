@@ -57,10 +57,11 @@ def tfrecord_iterator(
     def read_records(start_offset=None, end_offset=None):
         nonlocal length_bytes, crc_bytes, datum_bytes
 
-        if start_offset is not None:
-            file.seek(start_offset)
         if end_offset is None:
-            end_offset = os.path.getsize(data_path)
+            end_offset = file.seek(0, io.SEEK_END)
+        if start_offset is None:
+            start_offset = 0
+        file.seek(start_offset)
         while file.tell() < end_offset:
             if file.readinto(length_bytes) != 8:
                 raise RuntimeError("Failed to read the record size.")
@@ -113,7 +114,7 @@ def process_feature(feature: example_pb2.Feature,
                         f"(should be '{reversed_mapping[inferred_typename]}').")
 
     if inferred_typename == "bytes_list":
-        value = np.frombuffer(value[0], dtype=np.uint8)
+        value = value[0]
     elif inferred_typename == "float_list":
         value = np.array(value, dtype=np.float32)
     elif inferred_typename == "int64_list":
