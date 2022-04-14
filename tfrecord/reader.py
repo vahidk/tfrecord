@@ -152,8 +152,9 @@ def extract_feature_dict(features, description, typename_mapping):
     processed_features = {}
     for key, typename in description.items():
         if key not in all_keys:
-            raise KeyError(f"Key {key} doesn't exist (select from {all_keys})!")
-
+            processed_features[key] = None
+            continue
+            
         processed_features[key] = get_value(typename, typename_mapping, key)
 
     return processed_features
