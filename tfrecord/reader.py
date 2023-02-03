@@ -6,6 +6,7 @@ import io
 import os
 import struct
 import typing
+import zlib
 
 import numpy as np
 
@@ -46,13 +47,17 @@ def tfrecord_iterator(
     """
     if compression_type == "gzip":
         file = gzip.open(data_path, "rb")
+    elif compression_type == "zlib":
+        zlib_obj = zlib.decompress(open(data_path, 'rb').read())
+        file = io.BytesIO(zlib_obj)
     elif compression_type is None:
         file = io.open(data_path, "rb")
     else:
-        raise ValueError("compression_type should be either 'gzip' or None")
+        raise ValueError("compression_type should be either 'gzip', 'zlib' or None")
     length_bytes = bytearray(8)
     crc_bytes = bytearray(4)
     datum_bytes = bytearray(1024 * 1024)
+    end_offset = len(zlib_obj) if compression_type == "zlib" else None
 
     def read_records(start_offset=None, end_offset=None):
         nonlocal length_bytes, crc_bytes, datum_bytes
@@ -77,7 +82,7 @@ def tfrecord_iterator(
             yield datum_bytes_view
 
     if index_path is None:
-        yield from read_records()
+        yield from read_records(end_offset=end_offset)
     else:
         index = np.loadtxt(index_path, dtype=np.int64)[:, 0]
         if shard is None:
@@ -113,7 +118,10 @@ def process_feature(feature: example_pb2.Feature,
                         f"(should be '{reversed_mapping[inferred_typename]}').")
 
     if inferred_typename == "bytes_list":
-        value = np.frombuffer(value[0], dtype=np.uint8)
+        if typename == "float16":
+            value = np.frombuffer(value[0], dtype=np.float16)
+        else:
+            value = np.frombuffer(value[0], dtype=np.uint8)
     elif inferred_typename == "float_list":
         value = np.array(value, dtype=np.float32)
     elif inferred_typename == "int64_list":
@@ -205,6 +213,7 @@ def example_loader(
 
     typename_mapping = {
         "byte": "bytes_list",
+        "float16": "bytes_list",
         "float": "float_list",
         "int": "int64_list"
     }
@@ -288,6 +297,7 @@ def sequence_loader(
     """
     typename_mapping = {
         "byte": "bytes_list",
+        "float16": "bytes_list",
         "float": "float_list",
         "int": "int64_list"
     }
