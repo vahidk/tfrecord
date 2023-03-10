@@ -50,6 +50,12 @@ data = next(iter(loader))
 print(data)
 ```
 
+### Compatibility with TFRecordDatasets written using tensorflow 
+
+In theory all datasets [written using tensorflow][https://www.tensorflow.org/tutorials/load_data/tfrecord] can also be read using tfrecord.
+
+However, while tensorflow supports several feature formats [such as `VarLenFeature`, `SparseFeature`, `RaggedFeature`, and `FixedLenFeature`][https://github.com/tensorflow/tensorflow/blob/2eff2d8f08e5fae591573d0cd1fdff8f9a3df135/tensorflow/python/ops/parsing_ops.py#L79], tfrecord only supports `FixedLenFeature`.
+
 ### Infinite and finite PyTorch dataset
 
 By default, `MultiTFRecordDataset` is infinite, meaning that it samples the data forever. You can make it finite by providing the appropriate flag
