@@ -113,7 +113,7 @@ def process_feature(feature: example_pb2.Feature,
                         f"(should be '{reversed_mapping[inferred_typename]}').")
 
     if inferred_typename == "bytes_list":
-        value = np.frombuffer(value[0], dtype=np.uint8)
+        value = value[0]
     elif inferred_typename == "float_list":
         value = np.array(value, dtype=np.float32)
     elif inferred_typename == "int64_list":

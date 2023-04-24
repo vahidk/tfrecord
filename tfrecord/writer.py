@@ -4,11 +4,8 @@ import io
 import struct
 import typing
 
+import crc32c
 import numpy as np
-try:
-    import crc32c
-except ImportError:
-    crc32c = None
 
 from tfrecord import example_pb2
 
