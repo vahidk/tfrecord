@@ -8,9 +8,14 @@ This library allows reading and writing tfrecord files efficiently in python. Th
 
 ## Usage
 
-It's recommended to create an index file for each TFRecord file. Index file must be provided when using multiple workers, otherwise the loader may return duplicate records.
+It's recommended to create an index file for each TFRecord file. Index file must be provided when using multiple workers, otherwise the loader may return duplicate records. You can create an index file for an individual tfrecord file with this utility program:
 ```
 python3 -m tfrecord.tools.tfrecord2idx <tfrecord path> <index path>
+```
+
+To create "*.tfidnex" files for all "*.tfrecord" files in a directory run:
+```
+tfrecord2idx <data dir>
 ```
 
 ## Reading & Writing tf.train.Example
