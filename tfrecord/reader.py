@@ -54,13 +54,18 @@ def tfrecord_iterator(
     crc_bytes = bytearray(4)
     datum_bytes = bytearray(1024 * 1024)
 
+    def gzip_file_size(filename):
+        with gzip.open(filename, "rb") as fd:
+            fd.seek(0, io.SEEK_END)
+            return fd.tell()
+
     def read_records(start_offset=None, end_offset=None):
         nonlocal length_bytes, crc_bytes, datum_bytes
 
         if start_offset is not None:
             file.seek(start_offset)
         if end_offset is None:
-            end_offset = os.path.getsize(data_path)
+            end_offset = gzip_file_size(data_path) if compression_type == 'gzip' else os.path.getsize(data_path)
         while file.tell() < end_offset:
             if file.readinto(length_bytes) != 8:
                 raise RuntimeError("Failed to read the record size.")
