@@ -4,7 +4,9 @@ This library allows reading and writing tfrecord files efficiently in python. Th
 
 ## Installation
 
-```pip3 install tfrecord```
+```
+pip3 install 'tfrecord[torch]'
+```
 
 ## Usage
 

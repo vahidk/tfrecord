@@ -62,7 +62,7 @@ class TFRecordWriter:
     def masked_crc(data: bytes) -> bytes:
         """CRC checksum."""
         mask = 0xa282ead8
-        crc = crc32c.crc32(data)
+        crc = crc32c.crc32c(data)
         masked = ((crc >> 15) | (crc << 17)) + mask
         masked = np.uint32(masked & np.iinfo(np.uint32).max)
         masked_bytes = struct.pack("<I", masked)

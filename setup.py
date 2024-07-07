@@ -18,7 +18,7 @@ with open(os.path.join(this_directory, 'README.md')) as f:
 
 setup(
     name='tfrecord',
-    version='1.14.4',
+    version='1.14.5',
     description='TFRecord reader',
     long_description=long_description,
     long_description_content_type='text/markdown',
@@ -27,5 +27,9 @@ setup(
     url='https://github.com/vahidk/tfrecord',
     packages=find_packages(),
     license='MIT',
-    install_requires=install_requires
+    install_requires=install_requires,
+    extras_require={
+        'torch': ['torch'],
+    },
+    test_suite='tests',
 )

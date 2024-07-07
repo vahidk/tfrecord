@@ -1,3 +1,7 @@
 *.pyc
 dist
 tfrecord.egg-info
+/test_*
+/*.proto
+/*.sh
+/.pypirc
