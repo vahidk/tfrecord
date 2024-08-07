@@ -52,6 +52,7 @@ class TFRecordIndexer(object):
             self.file = io.open(data_path, "rb")
         else:
             raise ValueError("compression_type should be either 'gzip' or None")
+        self.compression_type = compression_type
         self.data_path = data_path
         self.length_bytes = bytearray(8)
         self.crc_bytes = bytearray(4)
@@ -73,7 +74,7 @@ class TFRecordIndexer(object):
         if start_offset is not None:
             self.file.seek(start_offset)
         if end_offset is None:
-            end_offset = self.gzip_file_size(self.data_path) if compression_type == 'gzip' else os.path.getsize(data_path)
+            end_offset = self.gzip_file_size(self.data_path) if self.compression_type == 'gzip' else os.path.getsize(self.data_path)
         while self.file.tell() < end_offset:
             if self.file.readinto(self.length_bytes) != 8:
                 raise RuntimeError("Failed to read the record size.")

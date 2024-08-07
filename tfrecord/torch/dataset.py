@@ -158,12 +158,9 @@ class TFRecordMapDataset(torch.utils.data.Dataset):
         self.indexer = TFRecordIndexer(data_path, index_path, description, compression_type)
 
     def __getitem__(self, index):
-        worker_info = torch.utils.data.get_worker_info()
-        if worker_info is not None:
-            shard = worker_info.id, worker_info.num_workers
-            np.random.seed(worker_info.seed % np.iinfo(np.uint32).max)
-        else:
-            shard = None
+        if index < 0: index = len(self.index) + index
+        if index < 0 or index >= len(self.index):
+            raise IndexError("Index out of bounds.")
         return self.transform(self.indexer.fetch(index))
 
     def __len__(self):
