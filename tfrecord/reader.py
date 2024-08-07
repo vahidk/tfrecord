@@ -12,6 +12,96 @@ import numpy as np
 from tfrecord import example_pb2
 from tfrecord import iterator_utils
 
+class TFRecordIndexer(object):
+    def __init__(self, data_path: str,
+                index_path: typing.Optional[str] = None,
+                description: typing.Optional[str] = None,
+                compression_type: typing.Optional[str] = None): 
+        """Create an indexer over the tfrecord dataset.
+
+        Since the tfrecords file stores each example as bytes, we can
+        define an indexer over `datum_bytes_view`, which is a memoryview
+        object referencing the bytes.
+
+        Params:
+        -------
+        data_path: str
+            TFRecord file path.
+
+        index_path: str, optional, default=None
+            Index file path. Can't be set to None if no file is available.
+
+        description: str, optional, default=None
+            The description needed for extract feature dict. 
+
+        shard: tuple of ints, optional, default=None
+            A tuple (index, count) representing worker_id and num_workers
+            count. Necessary to evenly split/shard the dataset among many
+            workers (i.e. >1).
+
+        Yields:
+        -------
+        datum_bytes_view: memoryview
+            Object referencing the specified `datum_bytes` contained in the
+            file (for a single record).
+        """
+        super(TFRecordIndexer, self).__init__()
+        if compression_type == "gzip":
+            self.file = gzip.open(data_path, "rb")
+        elif compression_type is None:
+            self.file = io.open(data_path, "rb")
+        else:
+            raise ValueError("compression_type should be either 'gzip' or None")
+        self.compression_type = compression_type
+        self.data_path = data_path
+        self.length_bytes = bytearray(8)
+        self.crc_bytes = bytearray(4)
+        self.datum_bytes = bytearray(1024 * 1024)
+        self.index = np.loadtxt(index_path, dtype=np.int64)[:, 0]
+        self.description = description
+        self.typename_mapping = {
+            "byte": "bytes_list",
+            "float": "float_list",
+            "int": "int64_list"
+        }
+
+    def gzip_file_size(self, filename):
+        with gzip.open(filename, "rb") as fd:
+            fd.seek(0, io.SEEK_END)
+            return fd.tell()
+
+    def read_records(self, start_offset=None, end_offset=None):
+        if start_offset is not None:
+            self.file.seek(start_offset)
+        if end_offset is None:
+            end_offset = self.gzip_file_size(self.data_path) if self.compression_type == 'gzip' else os.path.getsize(self.data_path)
+        while self.file.tell() < end_offset:
+            if self.file.readinto(self.length_bytes) != 8:
+                raise RuntimeError("Failed to read the record size.")
+            if self.file.readinto(self.crc_bytes) != 4:
+                raise RuntimeError("Failed to read the start token.")
+            length, = struct.unpack("<Q", self.length_bytes)
+            if length > len(self.datum_bytes):
+                self.datum_bytes = self.datum_bytes.zfill(int(length * 1.5))
+            datum_bytes_view = memoryview(self.datum_bytes)[:length]
+            if self.file.readinto(datum_bytes_view) != length:
+                raise RuntimeError("Failed to read the record.")
+            if self.file.readinto(self.crc_bytes) != 4:
+                raise RuntimeError("Failed to read the end token.")
+            return datum_bytes_view
+
+    def fetch(self, index):
+        start_byte = self.index[index]
+        end_byte = self.index[index+1] if (index+1) < len(self.index) else None
+
+        record = self.read_records(start_byte, end_byte)
+
+        example = example_pb2.Example()
+        example.ParseFromString(record)
+        return extract_feature_dict(example.features, self.description, self.typename_mapping)
+
+    def close(self):
+        self.file.close()
 
 def tfrecord_iterator(
     data_path: str,
