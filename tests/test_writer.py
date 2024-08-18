@@ -1,7 +1,6 @@
-import unittest
-import tempfile
 import os
-import numpy as np
+import tempfile
+import unittest
 
 from tfrecord.reader import tfrecord_iterator
 from tfrecord.writer import TFRecordWriter
@@ -33,7 +32,9 @@ class TestTFRecordWriter(unittest.TestCase):
 
         iterator = tfrecord_iterator(filename)
         records = list(iterator)
-        self.assertTrue(records[0].tobytes().startswith(b"\n\x12\n\x10\n\x03key\x12\t\n\x07\n\x05value"))
+        self.assertTrue(
+            records[0].tobytes().startswith(b"\n\x12\n\x10\n\x03key\x12\t\n\x07\n\x05value")
+        )
         os.remove(filename)
 
 

@@ -1,12 +1,11 @@
 """Load tfrecord files into torch datasets."""
 
 import typing
-import numpy as np
 
+import numpy as np
 import torch.utils.data
 
-from tfrecord import reader
-from tfrecord import iterator_utils
+from tfrecord import iterator_utils, reader
 
 
 class TFRecordDataset(torch.utils.data.IterableDataset):
@@ -53,15 +52,16 @@ class TFRecordDataset(torch.utils.data.IterableDataset):
 
     """
 
-    def __init__(self,
-                 data_path: str,
-                 index_path: typing.Union[str, None],
-                 description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
-                 shuffle_queue_size: typing.Optional[int] = None,
-                 transform: typing.Callable[[dict], typing.Any] = None,
-                 sequence_description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
-                 compression_type: typing.Optional[str] = None,
-                 ) -> None:
+    def __init__(
+        self,
+        data_path: str,
+        index_path: typing.Union[str, None],
+        description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
+        shuffle_queue_size: typing.Optional[int] = None,
+        transform: typing.Callable[[dict], typing.Any] = None,
+        sequence_description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
+        compression_type: typing.Optional[str] = None,
+    ) -> None:
         super(TFRecordDataset, self).__init__()
         self.data_path = data_path
         self.index_path = index_path
@@ -78,12 +78,14 @@ class TFRecordDataset(torch.utils.data.IterableDataset):
             np.random.seed(worker_info.seed % np.iinfo(np.uint32).max)
         else:
             shard = None
-        it = reader.tfrecord_loader(data_path=self.data_path,
-                                    index_path=self.index_path,
-                                    description=self.description,
-                                    shard=shard,
-                                    sequence_description=self.sequence_description,
-                                    compression_type=self.compression_type)
+        it = reader.tfrecord_loader(
+            data_path=self.data_path,
+            index_path=self.index_path,
+            description=self.description,
+            shard=shard,
+            sequence_description=self.sequence_description,
+            compression_type=self.compression_type,
+        )
         if self.shuffle_queue_size:
             it = iterator_utils.shuffle_iterator(it, self.shuffle_queue_size)
         if self.transform:
@@ -135,22 +137,23 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
     compression_type: str, optional, default=None
         The type of compression used for the tfrecord. Choose either
         'gzip' or None.
-    
+
     infinite: bool, optional, default=True
         Whether the Dataset should be infinite or not
     """
 
-    def __init__(self,
-                 data_pattern: str,
-                 index_pattern: typing.Union[str, None],
-                 splits: typing.Dict[str, float],
-                 description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
-                 shuffle_queue_size: typing.Optional[int] = None,
-                 transform: typing.Callable[[dict], typing.Any] = None,
-                 sequence_description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
-                 compression_type: typing.Optional[str] = None,
-                 infinite: bool = True
-                 ) -> None:
+    def __init__(
+        self,
+        data_pattern: str,
+        index_pattern: typing.Union[str, None],
+        splits: typing.Dict[str, float],
+        description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
+        shuffle_queue_size: typing.Optional[int] = None,
+        transform: typing.Callable[[dict], typing.Any] = None,
+        sequence_description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
+        compression_type: typing.Optional[str] = None,
+        infinite: bool = True,
+    ) -> None:
         super(MultiTFRecordDataset, self).__init__()
         self.data_pattern = data_pattern
         self.index_pattern = index_pattern
@@ -166,14 +169,15 @@ class MultiTFRecordDataset(torch.utils.data.IterableDataset):
         worker_info = torch.utils.data.get_worker_info()
         if worker_info is not None:
             np.random.seed(worker_info.seed % np.iinfo(np.uint32).max)
-        it = reader.multi_tfrecord_loader(data_pattern=self.data_pattern,
-                                          index_pattern=self.index_pattern,
-                                          splits=self.splits,
-                                          description=self.description,
-                                          sequence_description=self.sequence_description,
-                                          compression_type=self.compression_type,
-                                          infinite=self.infinite,
-                                         )
+        it = reader.multi_tfrecord_loader(
+            data_pattern=self.data_pattern,
+            index_pattern=self.index_pattern,
+            splits=self.splits,
+            description=self.description,
+            sequence_description=self.sequence_description,
+            compression_type=self.compression_type,
+            infinite=self.infinite,
+        )
         if self.shuffle_queue_size:
             it = iterator_utils.shuffle_iterator(it, self.shuffle_queue_size)
         if self.transform:

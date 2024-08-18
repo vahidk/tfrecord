@@ -31,9 +31,7 @@ class TestReadWrite(unittest.TestCase):
 
         self.assertEqual(len(records), 1)
         example = list(example_loader(filename, None))
-        np.testing.assert_array_equal(
-            example[0]["int_key"], np.array([123], dtype=np.int64)
-        )
+        np.testing.assert_array_equal(example[0]["int_key"], np.array([123], dtype=np.int64))
 
         os.remove(filename)
 
@@ -47,9 +45,7 @@ class TestReadWrite(unittest.TestCase):
 
         self.assertEqual(len(records), 1)
         example = list(example_loader(filename, None))
-        np.testing.assert_array_equal(
-            example[0]["float_key"], np.array([1.23], dtype=np.float32)
-        )
+        np.testing.assert_array_equal(example[0]["float_key"], np.array([1.23], dtype=np.float32))
 
         os.remove(filename)
 

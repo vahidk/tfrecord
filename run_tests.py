@@ -1,9 +1,9 @@
-import unittest
 import sys
+import unittest
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     loader = unittest.TestLoader()
-    tests = loader.discover('tests')
+    tests = loader.discover("tests")
     testRunner = unittest.TextTestRunner()
     result = testRunner.run(tests)
     # Exit with a non-zero status code if tests failed

@@ -1,9 +1,9 @@
 from __future__ import print_function
 
-import os
-import sys
-import struct
 import glob
+import os
+import struct
+import sys
 
 
 def create_index(tfrecord_file: str, index_file: str) -> None:
@@ -33,8 +33,7 @@ def create_index(tfrecord_file: str, index_file: str) -> None:
             proto_len = struct.unpack("q", byte_len)[0]
             infile.read(proto_len)
             infile.read(4)
-            outfile.write(str(current) + " " +
-                          str(infile.tell() - current) + "\n")
+            outfile.write(str(current) + " " + str(infile.tell() - current) + "\n")
         except:
             print("Failed to parse TFRecord.")
             break
@@ -58,7 +57,8 @@ def create_indices(tfrecord_dir: str) -> None:
 
 def main():
     if len(sys.argv) not in [2, 3]:
-        print("""Usage:
+        print(
+            """Usage:
         To create index for individual tfrecord file:
         tfrecord2idx <tfrecord path> <index path>
 
@@ -67,7 +67,8 @@ def main():
         
         This will search for all "*.tfrecord" files and create corresponding
         "*.tfindex" files.
-        """)
+        """
+        )
         sys.exit()
 
     if os.path.isdir(sys.argv[1]):
