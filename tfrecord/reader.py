@@ -52,6 +52,7 @@ def tfrecord_iterator(
     length_bytes = bytearray(8)
     crc_bytes = bytearray(4)
     datum_bytes = bytearray(1024 * 1024)
+    index = np.loadtxt(index_path, dtype=np.int64)[:, 0] if index_path is not None else None
 
     def gzip_file_size(filename):
         with gzip.open(filename, "rb") as fd:
@@ -59,7 +60,7 @@ def tfrecord_iterator(
             return fd.tell()
 
     def read_records(start_offset=None, end_offset=None):
-        nonlocal length_bytes, crc_bytes, datum_bytes
+        nonlocal length_bytes, crc_bytes, datum_bytes, index
 
         if start_offset is not None:
             file.seek(start_offset)
@@ -82,12 +83,17 @@ def tfrecord_iterator(
                 raise RuntimeError("Failed to read the record.")
             if file.readinto(crc_bytes) != 4:
                 raise RuntimeError("Failed to read the end token.")
-            yield datum_bytes_view
+            received_index = yield datum_bytes_view
+            if received_index is not None and index is not None:
+                if received_index == -1:
+                    file.close()
+                    break
+                start_offset = index[received_index]
+                file.seek(start_offset)
 
     if index_path is None:
         yield from read_records()
     else:
-        index = np.loadtxt(index_path, dtype=np.int64)[:, 0]
         if shard is None:
             offset = np.random.choice(index)
             yield from read_records(offset)
