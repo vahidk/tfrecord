@@ -17,6 +17,7 @@ def tfrecord_iterator(
     index_path: typing.Optional[str] = None,
     shard: typing.Optional[typing.Tuple[int, int]] = None,
     compression_type: typing.Optional[str] = None,
+    map_access: typing.Optional[bool] = False,
 ) -> typing.Iterable[memoryview]:
     """Create an iterator over the tfrecord dataset.
 
@@ -36,6 +37,13 @@ def tfrecord_iterator(
         A tuple (index, count) representing worker_id and num_workers
         count. Necessary to evenly split/shard the dataset among many
         workers (i.e. >1).
+
+    compression_type: str, optional, default=None
+        The type of compression used for the tfrecord. Choose either
+        'gzip' or None.
+
+    map_access: bool, optional, default=False
+        Whether the iterator is a generator supports map-based indexing.
 
     Yields:
     -------
@@ -60,7 +68,12 @@ def tfrecord_iterator(
             return fd.tell()
 
     def read_records(start_offset=None, end_offset=None):
-        nonlocal length_bytes, crc_bytes, datum_bytes, index
+        nonlocal length_bytes, crc_bytes, datum_bytes, index, map_access
+
+        if map_access:
+            received_index = yield 
+            if received_index is not None:
+                start_offset = index[received_index]
 
         if start_offset is not None:
             file.seek(start_offset)
@@ -84,7 +97,7 @@ def tfrecord_iterator(
             if file.readinto(crc_bytes) != 4:
                 raise RuntimeError("Failed to read the end token.")
             received_index = yield datum_bytes_view
-            if received_index is not None and index is not None:
+            if map_access and received_index is not None:
                 if received_index == -1:
                     file.close()
                     break
@@ -181,6 +194,7 @@ def example_loader(
     description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
     shard: typing.Optional[typing.Tuple[int, int]] = None,
     compression_type: typing.Optional[str] = None,
+    map_access: typing.Optional[bool] = False,
 ) -> typing.Iterable[typing.Dict[str, np.ndarray]]:
     """Create an iterator over the (decoded) examples contained within
     the dataset.
@@ -213,6 +227,9 @@ def example_loader(
         The type of compression used for the tfrecord. Choose either
         'gzip' or None.
 
+    map_access: bool, optional, default=False
+        Whether the iterator is a generator supports map-based indexing.
+
     Yields:
     -------
     features: dict of {str, np.ndarray}
@@ -227,9 +244,15 @@ def example_loader(
         index_path=index_path,
         shard=shard,
         compression_type=compression_type,
+        map_access=map_access,
     )
 
+    skip_first = map_access
     for record in record_iterator:
+        if skip_first:
+            yield {} 
+            skip_first = False
+            continue
         example = example_pb2.Example()
         example.ParseFromString(record)
 
@@ -243,6 +266,7 @@ def sequence_loader(
     features_description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
     shard: typing.Optional[typing.Tuple[int, int]] = None,
     compression_type: typing.Optional[str] = None,
+    map_access: typing.Optional[bool] = False,
 ) -> typing.Iterable[
     typing.Tuple[typing.Dict[str, np.ndarray], typing.Dict[str, typing.List[np.ndarray]]]
 ]:
@@ -281,6 +305,9 @@ def sequence_loader(
         The type of compression used for the tfrecord. Choose either
         'gzip' or None.
 
+    map_access: bool, optional, default=False
+        Whether the iterator is a generator supports map-based indexing.
+
     Yields:
     -------
     A tuple of (context, features) for an individual record.
@@ -300,9 +327,16 @@ def sequence_loader(
         index_path=index_path,
         shard=shard,
         compression_type=compression_type,
+        map_access=map_access,
     )
 
+    skip_first = map_access
     for record in record_iterator:
+        if skip_first:
+            yield {}, {} 
+            skip_first = False
+            continue
+
         example = example_pb2.SequenceExample()
         example.ParseFromString(record)
 
@@ -321,6 +355,7 @@ def tfrecord_loader(
     shard: typing.Optional[typing.Tuple[int, int]] = None,
     sequence_description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
     compression_type: typing.Optional[str] = None,
+    map_access: typing.Optional[bool] = False,
 ) -> typing.Iterable[
     typing.Union[
         typing.Dict[str, np.ndarray],
@@ -366,6 +401,9 @@ def tfrecord_loader(
         The type of compression used for the tfrecord. Choose either
         'gzip' or None.
 
+    map_access: bool, optional, default=False
+        Whether the iterator is a generator supports map-based indexing.
+
     Yields:
     -------
     features: dict of {str, value}
@@ -382,6 +420,7 @@ def tfrecord_loader(
             features_description=sequence_description,
             shard=shard,
             compression_type=compression_type,
+            map_access=map_access,
         )
     return example_loader(
         data_path=data_path,
@@ -389,6 +428,7 @@ def tfrecord_loader(
         description=description,
         shard=shard,
         compression_type=compression_type,
+        map_access=map_access,
     )
 
 
@@ -399,6 +439,7 @@ def multi_tfrecord_loader(
     description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
     sequence_description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
     compression_type: typing.Optional[str] = None,
+    map_access: typing.Optional[bool] = False,
     infinite: bool = True,
 ) -> typing.Iterable[
     typing.Union[
@@ -442,6 +483,9 @@ def multi_tfrecord_loader(
         The type of compression used for the tfrecord. Choose either
         'gzip' or None.
 
+    map_access: bool, optional, default=False
+        Whether the iterator is a generator supports map-based indexing.
+
     infinite: bool, optional, default=True
         Whether the returned iterator should be infinite or not
 
@@ -458,6 +502,7 @@ def multi_tfrecord_loader(
             description=description,
             sequence_description=sequence_description,
             compression_type=compression_type,
+            map_access=map_access,
         )
         for split in splits.keys()
     ]

@@ -71,43 +71,51 @@ class TFRecordMapDataset(torch.utils.data.Dataset):
         self.transform = transform or (lambda x: x)
         self.compression_type = compression_type
         self.index = np.loadtxt(index_path, dtype=np.int64)[:, 0]
-        self.it = None 
+        self.initialized = False
+        self.shard = None
+        self.it = None
 
     def _close(self):
-        self.it.send(-1)
+        if self.it is not None:
+            self.it.send(-1)
 
     def __getitem__(self, index):
-        worker_info = torch.utils.data.get_worker_info()
-        if worker_info is not None:
-            shard = worker_info.id, worker_info.num_workers
-            np.random.seed(worker_info.seed % np.iinfo(np.uint32).max)
-        else:
-            shard = None
+        if self.initialized is False:
+            worker_info = torch.utils.data.get_worker_info()
+            if worker_info is not None:
+                self.shard = worker_info.id, worker_info.num_workers
+                np.random.seed(worker_info.seed % np.iinfo(np.uint32).max)
+            else:
+                self.shard = None
 
-        if self.it is None:
             self.it = reader.tfrecord_loader(
                 data_path=self.data_path,
                 index_path=self.index_path,
                 description=self.description,
-                shard=shard,
+                shard=self.shard,
                 sequence_description=self.sequence_description,
                 compression_type=self.compression_type,
+                map_access=True,
             )
-            next(self.it)
+            try:
+                next(self.it)
+            except:
+                pass
+            self.initialized = True
+
         if self.shuffle_queue_size:
             self.it = iterator_utils.shuffle_iterator(self.it, self.shuffle_queue_size)
+
         record = self.it.send(index)
         if self.transform:
             record = self.transform(record)
         return record
 
     def __len__(self):
-        worker_info = torch.utils.data.get_worker_info()
-        if worker_info is not None:
-            shard = worker_info.id, worker_info.num_workers
+        if self.shard is None:
+            return len(self.index)
         else:
-            shard = 0, 1 
-        return len(self.index) / shard[1]
+            return len(self.index) / self.shard[1]
 
 class TFRecordDataset(torch.utils.data.IterableDataset):
     """Parse (generic) TFRecords dataset into `IterableDataset` object,
