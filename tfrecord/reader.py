@@ -67,13 +67,13 @@ def tfrecord_iterator(
             fd.seek(0, io.SEEK_END)
             return fd.tell()
 
-    def read_records(start_offset=None, end_offset=None):
+    def read_records(start_offset=None, end_offset=None, start_index=0):
         nonlocal length_bytes, crc_bytes, datum_bytes, index, map_access
 
         if map_access:
             received_index = yield 
             if received_index is not None:
-                start_offset = index[received_index]
+                start_offset = index[received_index + start_index]
 
         if start_offset is not None:
             file.seek(start_offset)
@@ -101,14 +101,14 @@ def tfrecord_iterator(
                 if received_index == -1:
                     file.close()
                     break
-                start_offset = index[received_index]
+                start_offset = index[received_index + start_index]
                 file.seek(start_offset)
 
     if index_path is None:
         yield from read_records()
     else:
         if shard is None:
-            offset = np.random.choice(index)
+            offset = index[0]
             yield from read_records(offset)
             yield from read_records(0, offset)
         else:
@@ -118,7 +118,7 @@ def tfrecord_iterator(
             end_index = (num_records * (shard_idx + 1)) // shard_count
             start_byte = index[start_index]
             end_byte = index[end_index] if end_index < num_records else None
-            yield from read_records(start_byte, end_byte)
+            yield from read_records(start_byte, end_byte, start_index=start_index)
 
     file.close()
 
