@@ -108,7 +108,7 @@ def tfrecord_iterator(
         yield from read_records()
     else:
         if shard is None:
-            offset = index[0]
+            offset = np.random.choice(index)
             yield from read_records(offset)
             yield from read_records(0, offset)
         else:
