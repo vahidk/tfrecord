@@ -247,16 +247,18 @@ def example_loader(
         map_access=map_access,
     )
 
+    idx = None
     skip_first = map_access
-    for record in record_iterator:
-        if skip_first:
-            yield {} 
-            skip_first = False
-            continue
-        example = example_pb2.Example()
-        example.ParseFromString(record)
+    while True:
+        record = next(record_iterator) if idx is None else record_iterator.send(idx)
 
-        yield extract_feature_dict(example.features, description, typename_mapping)
+        if skip_first:
+            idx = yield {}
+            skip_first = False
+        else:
+            example = example_pb2.Example()
+            example.ParseFromString(record)
+            idx = yield extract_feature_dict(example.features, description, typename_mapping)
 
 
 def sequence_loader(
@@ -330,22 +332,24 @@ def sequence_loader(
         map_access=map_access,
     )
 
+    idx = None
     skip_first = map_access
-    for record in record_iterator:
+    while True:
+        record = next(record_iterator) if idx is None else record_iterator.send(idx)
+
         if skip_first:
-            yield {}, {} 
+            idx = yield {}
             skip_first = False
-            continue
+        else:
+            example = example_pb2.Example()
+            example.ParseFromString(record)
 
-        example = example_pb2.SequenceExample()
-        example.ParseFromString(record)
+            context = extract_feature_dict(example.context, context_description, typename_mapping)
+            features = extract_feature_dict(
+                example.feature_lists, features_description, typename_mapping
+            )
 
-        context = extract_feature_dict(example.context, context_description, typename_mapping)
-        features = extract_feature_dict(
-            example.feature_lists, features_description, typename_mapping
-        )
-
-        yield context, features
+            idx = yield context, features
 
 
 def tfrecord_loader(

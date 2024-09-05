@@ -97,10 +97,7 @@ class TFRecordMapDataset(torch.utils.data.Dataset):
                 compression_type=self.compression_type,
                 map_access=True,
             )
-            try:
-                next(self.it)
-            except:
-                pass
+            next(self.it)
             self.initialized = True
 
         if self.shuffle_queue_size:
