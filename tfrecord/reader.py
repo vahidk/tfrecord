@@ -394,6 +394,7 @@ def multi_tfrecord_loader(
     sequence_description: typing.Union[typing.List[str], typing.Dict[str, str], None] = None,
     compression_type: typing.Optional[str] = None,
     infinite: bool = True,
+    shard: typing.Optional[typing.Tuple[int, int]] = None
 ) -> typing.Iterable[
     typing.Union[
         typing.Dict[str, np.ndarray],
@@ -401,8 +402,6 @@ def multi_tfrecord_loader(
     ]
 ]:
     """Create an iterator by reading and merging multiple tfrecord datasets.
-
-    NOTE: Sharding is currently unavailable for the multi tfrecord loader.
 
     Params:
     -------
@@ -439,6 +438,11 @@ def multi_tfrecord_loader(
     infinite: bool, optional, default=True
         Whether the returned iterator should be infinite or not
 
+    shard: tuple of ints, optional, default=None
+        A tuple (index, count) representing worker_id and num_workers
+        count. Necessary to evenly split/shard the dataset among many
+        workers (i.e. >1).
+
     Returns:
     --------
     it: iterator
@@ -452,6 +456,7 @@ def multi_tfrecord_loader(
             description=description,
             sequence_description=sequence_description,
             compression_type=compression_type,
+            shard=shard
         )
         for split in splits.keys()
     ]
