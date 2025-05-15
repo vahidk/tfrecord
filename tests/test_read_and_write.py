@@ -59,7 +59,7 @@ class TestReadWrite(unittest.TestCase):
 
         self.assertEqual(len(records), 1)
         example = list(example_loader(filename, None))
-        self.assertEqual(example[0]["string_key"], b"test1")
+        np.testing.assert_array_equal(example[0]["string_key"], np.array([b"test1", b"test2"], dtype=bytes))
 
         os.remove(filename)
 

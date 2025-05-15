@@ -120,7 +120,10 @@ def process_feature(feature: example_pb2.Feature, typename: str, typename_mappin
             )
 
     if inferred_typename == "bytes_list":
-        value = value[0]
+        if len(value) == 1:
+            value = value[0]
+        else:
+            value = np.array(value, dtype=bytes)
     elif inferred_typename == "float_list":
         value = np.array(value, dtype=np.float32)
     elif inferred_typename == "int64_list":
