@@ -2,6 +2,10 @@
 
 This library allows reading and writing tfrecord files efficiently in python. The library also provides an IterableDataset reader of tfrecord files for PyTorch. Currently uncompressed and compressed gzip TFRecords are supported.
 
+TensorFlow is not required or imported by this library. Both packages can be used
+in the same process in either import order. Their protobuf message classes are
+independent; use `SerializeToString()` and `FromString()` to exchange messages.
+
 ## Installation
 
 ```
