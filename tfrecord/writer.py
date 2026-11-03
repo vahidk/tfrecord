@@ -4,10 +4,9 @@ import io
 import struct
 import typing
 
-import crc32c
 import numpy as np
 
-from tfrecord import example_pb2
+from tfrecord import _record, example_pb2
 
 
 class TFRecordWriter:
@@ -65,12 +64,7 @@ class TFRecordWriter:
     @staticmethod
     def masked_crc(data: bytes) -> bytes:
         """CRC checksum."""
-        mask = 0xA282EAD8
-        crc = crc32c.crc32c(data)
-        masked = ((crc >> 15) | (crc << 17)) + mask
-        masked = np.uint32(masked & np.iinfo(np.uint32).max)
-        masked_bytes = struct.pack("<I", masked)
-        return masked_bytes
+        return _record.masked_crc(data)
 
     @staticmethod
     def serialize_tf_example(datum: typing.Dict[str, typing.Tuple[typing.Any, str]]) -> bytes:

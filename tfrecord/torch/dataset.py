@@ -68,7 +68,7 @@ class TFRecordDataset(torch.utils.data.IterableDataset):
         self.description = description
         self.sequence_description = sequence_description
         self.shuffle_queue_size = shuffle_queue_size
-        self.transform = transform or (lambda x: x)
+        self.transform = transform
         self.compression_type = compression_type
 
     def __iter__(self):

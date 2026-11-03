@@ -17,7 +17,7 @@ with open(os.path.join(this_directory, "README.md")) as f:
 
 setup(
     name="tfrecord",
-    version="1.14.6",
+    version="1.14.7",
     description="TFRecord reader",
     long_description=long_description,
     long_description_content_type="text/markdown",

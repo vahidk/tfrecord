@@ -38,4 +38,4 @@ jobs:
       - name: Test pure-Python protobuf runtime
         env:
           PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION: python
-        run: python -m unittest discover -s tests -p test_protobuf_compatibility.py
+        run: python run_tests.py

@@ -6,6 +6,15 @@ TensorFlow is not required or imported by this library. Both packages can be use
 in the same process in either import order. Their protobuf message classes are
 independent; use `SerializeToString()` and `FromString()` to exchange messages.
 
+Readers validate TFRecord length and payload checksums and raise `RuntimeError`
+for corrupt or truncated records. The index utility performs the same validation
+and replaces the destination index only after the complete file is validated.
+Raw record memoryviews remain valid after iteration advances.
+
+Features containing multiple byte strings are returned as NumPy arrays with
+`dtype=object` to preserve arbitrary binary data, including trailing zero bytes.
+A feature containing one byte string is returned as `bytes`.
+
 ## Installation
 
 ```
@@ -67,6 +76,11 @@ By default, `MultiTFRecordDataset` is infinite, meaning that it samples the data
 ```
 dataset = MultiTFRecordDataset(..., infinite=False)
 ```
+
+Empty files or worker shards are skipped, including during infinite sampling;
+iteration ends if all enabled sources are empty. Split weights must be finite
+and nonnegative, with at least one positive weight. Zero-weight splits are not
+opened.
 
 ### Shuffling the data
 

@@ -2,8 +2,10 @@ from __future__ import print_function
 
 import glob
 import os
-import struct
 import sys
+import tempfile
+
+from tfrecord import _record
 
 
 def create_index(tfrecord_file: str, index_file: str) -> None:
@@ -20,25 +22,23 @@ def create_index(tfrecord_file: str, index_file: str) -> None:
     index_file: str
         Path where to store the index file.
     """
-    infile = open(tfrecord_file, "rb")
-    outfile = open(index_file, "w")
-
-    while True:
-        current = infile.tell()
-        try:
-            byte_len = infile.read(8)
-            if len(byte_len) == 0:
-                break
-            infile.read(4)
-            proto_len = struct.unpack("q", byte_len)[0]
-            infile.read(proto_len)
-            infile.read(4)
-            outfile.write(str(current) + " " + str(infile.tell() - current) + "\n")
-        except:
-            print("Failed to parse TFRecord.")
-            break
-    infile.close()
-    outfile.close()
+    temporary_path = None
+    try:
+        with open(tfrecord_file, "rb") as infile:
+            end_offset = os.fstat(infile.fileno()).st_size
+            with tempfile.NamedTemporaryFile(
+                mode="w", dir=os.path.dirname(os.path.abspath(index_file)),
+                prefix=".tfrecord-index-", delete=False,
+            ) as outfile:
+                temporary_path = outfile.name
+                while infile.tell() < end_offset:
+                    current = infile.tell()
+                    _record.read_record(infile, end_offset)
+                    outfile.write(f"{current} {infile.tell() - current}\n")
+            os.replace(temporary_path, index_file)
+    finally:
+        if temporary_path is not None and os.path.exists(temporary_path):
+            os.unlink(temporary_path)
 
 
 def create_indices(tfrecord_dir: str) -> None:
